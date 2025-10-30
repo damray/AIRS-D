@@ -106,17 +106,135 @@ export default function Chatbot() {
 
   const scanPrompt = async (prompt: string) => {
     try {
-      const response = await fetch('/api/airs/scan', {
+      const airsApiUrl = import.meta.env.VITE_AIRS_API_URL;
+      const airsApiToken = import.meta.env.VITE_AIRS_API_TOKEN;
+      const airsProfileName = import.meta.env.VITE_AIRS_PROFILE_NAME;
+
+      if (!airsApiUrl || !airsApiToken || !airsProfileName) {
+        console.warn('AIRS API not configured, using mock response');
+        return simulateMockScan(prompt);
+      }
+
+      const requestBody = {
+        tr_id: `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        ai_profile: {
+          profile_name: airsProfileName
+        },
+        metadata: {
+          app_user: 'shop-assist-user',
+          app_name: 'Shop Assist Chatbot',
+          ai_model: 'Azure Foundry LLM'
+        },
+        contents: [
+          {
+            prompt: prompt
+          }
+        ]
+      };
+
+      const response = await fetch(`${airsApiUrl}/v1/scan/sync/request`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'x-pan-token': airsApiToken
+        },
+        body: JSON.stringify(requestBody)
       });
+
+      if (!response.ok) {
+        throw new Error(`AIRS API error: ${response.status} ${response.statusText}`);
+      }
+
       const data = await response.json();
-      return data;
+
+      const verdict = data.action === 'block' ? 'block' : 'allow';
+      let reason = '';
+
+      if (data.prompt_detected) {
+        const detections = [];
+        if (data.prompt_detected.injection) detections.push('Prompt injection');
+        if (data.prompt_detected.dlp) detections.push('Sensitive data leak');
+        if (data.prompt_detected.toxic_content) detections.push('Toxic content');
+        reason = detections.length > 0 ? detections.join(', ') + ' detected' : data.category || 'Security policy violation';
+      }
+
+      return {
+        verdict,
+        reason: reason || (verdict === 'block' ? 'Blocked by security policy' : 'Clean'),
+        scan_id: data.scan_id,
+        report_id: data.report_id,
+        category: data.category,
+        prompt_detected: data.prompt_detected
+      };
     } catch (error) {
       console.error('AIRS scan error:', error);
-      return { verdict: 'error', reason: 'Security service unavailable' };
+      return simulateMockScan(prompt);
     }
+  };
+
+  const simulateMockScan = (prompt: string) => {
+    const lowerPrompt = prompt.toLowerCase();
+
+    const injectionPatterns = [
+      'ignore', 'forget', 'disregard', 'system prompt', 'previous instructions',
+      'new instructions', 'you are now', 'reset', 'override', 'bypass'
+    ];
+
+    const secretPatterns = [
+      'api key', 'password', 'secret', 'token', 'credential', 'admin',
+      'database', 'access code'
+    ];
+
+    const maliciousPatterns = [
+      'hack', 'exploit', 'malware', 'virus', 'attack', 'steal', 'phishing',
+      'fraud', 'scam', 'illegal'
+    ];
+
+    for (const pattern of injectionPatterns) {
+      if (lowerPrompt.includes(pattern)) {
+        return {
+          verdict: 'block',
+          reason: 'Prompt injection attempt detected',
+          category: 'malicious'
+        };
+      }
+    }
+
+    for (const pattern of secretPatterns) {
+      if (lowerPrompt.includes(pattern)) {
+        return {
+          verdict: 'block',
+          reason: 'Secret exfiltration attempt detected',
+          category: 'malicious'
+        };
+      }
+    }
+
+    for (const pattern of maliciousPatterns) {
+      if (lowerPrompt.includes(pattern)) {
+        return {
+          verdict: 'block',
+          reason: 'Malicious content detected',
+          category: 'malicious'
+        };
+      }
+    }
+
+    if (lowerPrompt.includes('hypothetical') || lowerPrompt.includes('pretend')) {
+      return {
+        verdict: 'sanitize',
+        reason: 'Potentially unsafe hypothetical scenario',
+        sanitized_prompt: prompt.replace(/hypothetical|pretend/gi, 'theoretical'),
+        category: 'suspicious'
+      };
+    }
+
+    return {
+      verdict: 'allow',
+      reason: 'No threats detected',
+      category: 'benign'
+    };
   };
 
   const sendToLLM = async (prompt: string) => {
