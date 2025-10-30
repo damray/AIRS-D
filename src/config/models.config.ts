@@ -1,38 +1,44 @@
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: 'openai' | 'anthropic' | 'ollama' | 'azure' | 'custom';
+  provider: 'vertex' | 'anthropic' | 'ollama' | 'azure' | 'custom';
   apiUrl: string;
   apiKey?: string;
   model: string;
   enabled: boolean;
   description?: string;
   headers?: Record<string, string>;
-  requestFormat?: 'openai' | 'anthropic' | 'ollama' | 'custom';
+  requestFormat?: 'vertex' | 'anthropic' | 'ollama' | 'openai' | 'custom';
+  projectId?: string;
+  location?: string;
 }
 
 export const MODELS: ModelConfig[] = [
   {
-    id: 'gpt-4',
-    name: 'GPT-4 (OpenAI)',
-    provider: 'openai',
-    apiUrl: 'https://api.openai.com/v1/chat/completions',
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-    model: 'gpt-4',
-    enabled: !!import.meta.env.VITE_OPENAI_API_KEY,
-    description: 'OpenAI GPT-4 model',
-    requestFormat: 'openai'
+    id: 'gemini-pro',
+    name: 'Gemini Pro (Vertex AI)',
+    provider: 'vertex',
+    apiUrl: `https://${import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'}-aiplatform.googleapis.com/v1/projects/${import.meta.env.VITE_VERTEX_PROJECT_ID}/locations/${import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'}/publishers/google/models/gemini-pro:streamGenerateContent`,
+    apiKey: import.meta.env.VITE_VERTEX_API_KEY || '',
+    model: 'gemini-pro',
+    enabled: !!(import.meta.env.VITE_VERTEX_PROJECT_ID && import.meta.env.VITE_VERTEX_API_KEY),
+    description: 'Google Gemini Pro via Vertex AI',
+    requestFormat: 'vertex',
+    projectId: import.meta.env.VITE_VERTEX_PROJECT_ID || '',
+    location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
   },
   {
-    id: 'gpt-3.5-turbo',
-    name: 'GPT-3.5 Turbo (OpenAI)',
-    provider: 'openai',
-    apiUrl: 'https://api.openai.com/v1/chat/completions',
-    apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-    model: 'gpt-3.5-turbo',
-    enabled: !!import.meta.env.VITE_OPENAI_API_KEY,
-    description: 'OpenAI GPT-3.5 Turbo model',
-    requestFormat: 'openai'
+    id: 'gemini-pro-vision',
+    name: 'Gemini Pro Vision (Vertex AI)',
+    provider: 'vertex',
+    apiUrl: `https://${import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'}-aiplatform.googleapis.com/v1/projects/${import.meta.env.VITE_VERTEX_PROJECT_ID}/locations/${import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'}/publishers/google/models/gemini-pro-vision:streamGenerateContent`,
+    apiKey: import.meta.env.VITE_VERTEX_API_KEY || '',
+    model: 'gemini-pro-vision',
+    enabled: !!(import.meta.env.VITE_VERTEX_PROJECT_ID && import.meta.env.VITE_VERTEX_API_KEY),
+    description: 'Google Gemini Pro Vision via Vertex AI',
+    requestFormat: 'vertex',
+    projectId: import.meta.env.VITE_VERTEX_PROJECT_ID || '',
+    location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
   },
   {
     id: 'claude-3-opus',

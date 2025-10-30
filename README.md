@@ -26,13 +26,31 @@ npm install
 
 The chatbot supports multiple AI model providers. Configure one or more in your `.env` file:
 
-#### Option 1: OpenAI (GPT-4, GPT-3.5 Turbo)
+#### Option 1: Google Vertex AI (Gemini Pro, Gemini Pro Vision)
 
 ```env
-VITE_OPENAI_API_KEY=your-openai-api-key-here
+VITE_VERTEX_PROJECT_ID=your-gcp-project-id
+VITE_VERTEX_LOCATION=us-central1
+VITE_VERTEX_API_KEY=your-vertex-api-key-here
 ```
 
-Get your API key: https://platform.openai.com/api-keys
+**Setup Vertex AI:**
+1. Go to Google Cloud Console: https://console.cloud.google.com/vertex-ai
+2. Enable Vertex AI API for your project
+3. Create a service account with Vertex AI User role
+4. Generate API key or use OAuth 2.0 access token
+5. Set your project ID and preferred location (e.g., us-central1, europe-west1)
+
+**Generate Access Token (Alternative to API Key):**
+```bash
+gcloud auth application-default print-access-token
+```
+
+**Available Locations:**
+- `us-central1` (Iowa)
+- `us-east1` (South Carolina)
+- `europe-west1` (Belgium)
+- `asia-northeast1` (Tokyo)
 
 #### Option 2: Anthropic Claude (Claude 3 Opus, Sonnet)
 
@@ -158,7 +176,7 @@ The chatbot includes a dropdown to switch between configured AI models in real-t
 **Location**: Control bar, between AIRS toggle and Logs button
 
 **Supported Models**:
-- **OpenAI**: GPT-4, GPT-3.5 Turbo
+- **Google Vertex AI**: Gemini Pro, Gemini Pro Vision
 - **Anthropic**: Claude 3 Opus, Claude 3 Sonnet
 - **Ollama**: Llama 2, Mistral, Code Llama (local)
 - **Azure OpenAI**: GPT-4, custom deployments
@@ -184,7 +202,7 @@ Edit `src/config/models.config.ts` to add custom models:
   model: 'model-name',
   enabled: !!import.meta.env.VITE_CUSTOM_API_KEY,
   description: 'Custom model description',
-  requestFormat: 'openai'  // or 'anthropic', 'ollama', 'custom'
+  requestFormat: 'vertex'  // or 'anthropic', 'ollama', 'openai', 'custom'
 }
 ```
 
@@ -194,9 +212,10 @@ VITE_CUSTOM_API_KEY=your-api-key-here
 ```
 
 **Request Formats**:
-- `openai`: Compatible with OpenAI API format (ChatGPT, Azure, compatible APIs)
+- `vertex`: Google Vertex AI / Gemini API format
 - `anthropic`: Claude API format
 - `ollama`: Ollama API format
+- `openai`: Compatible with OpenAI API format (Azure, compatible APIs)
 - `custom`: Implement custom logic in `src/services/llmService.ts`
 
 ### AIRS Protection Toggle
@@ -461,7 +480,25 @@ Edit `SYSTEM_PROMPT.txt` and upload to your LLM platform (Azure Foundry, etc.)
 - Restart dev server after updating `.env`: `npm run dev`
 - Mock LLM should always be available as fallback
 
-#### OpenAI/Anthropic API errors
+#### Google Vertex AI errors
+
+- **401 Unauthorized**: API key/token is invalid or expired
+  - Regenerate access token: `gcloud auth application-default print-access-token`
+  - Verify service account has Vertex AI User role
+  - Check project ID is correct in `.env`
+- **403 Forbidden**: Vertex AI API not enabled
+  - Enable API: https://console.cloud.google.com/apis/library/aiplatform.googleapis.com
+  - Verify billing is enabled for project
+  - Check service account permissions
+- **404 Not Found**: Model or location incorrect
+  - Verify model name (gemini-pro, gemini-pro-vision)
+  - Check location matches your region
+  - Ensure model is available in your location
+- **Network Error**: Cannot reach Vertex AI endpoint
+  - Verify firewall allows HTTPS to googleapis.com
+  - Check project ID and location are properly formatted
+
+#### Anthropic API errors
 
 - **401 Unauthorized**: API key is invalid or missing
   - Verify API key in `.env` matches key from provider dashboard

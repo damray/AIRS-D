@@ -12,6 +12,8 @@ export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMRe
 
   try {
     switch (model.requestFormat) {
+      case 'vertex':
+        return await callVertexAI(prompt, model);
       case 'openai':
         return await callOpenAI(prompt, model);
       case 'anthropic':
@@ -28,6 +30,52 @@ export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMRe
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
+};
+
+const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${model.apiKey}`
+  };
+
+  const response = await fetch(model.apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `You are Shop Assist, a helpful shopping assistant. Help customers find products, answer questions, and provide excellent service.\n\nUser: ${prompt}`
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 500,
+        topP: 0.8,
+        topK: 40
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Vertex AI API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+    return {
+      response: data.candidates[0].content.parts[0].text
+    };
+  }
+
+  return {
+    response: 'No response from Vertex AI model'
+  };
 };
 
 const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
