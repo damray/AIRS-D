@@ -31,15 +31,23 @@ export default function ProductPage({ product, onAddToCart, onNavigate }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* Product Image */}
-        <div className="bg-gray-100 aspect-square flex items-center justify-center rounded">
-          <ShoppingBag className="w-32 h-32 text-gray-300" />
+        <div className="bg-gray-100 aspect-square flex items-center justify-center rounded overflow-hidden">
+          {product.image ? (
+            <img
+              src={product.image}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <ShoppingBag className="w-32 h-32 text-gray-300" />
+          )}
         </div>
 
         {/* Product Details */}
         <div className="space-y-8">
           <div>
             <h1 className="text-4xl font-light text-black">{product.name}</h1>
-            <p className="text-gray-600 mt-2">{product.desc}</p>
+            <p className="text-gray-600 mt-2">{product.fullDesc || product.desc}</p>
             <p className="text-3xl font-semibold text-black mt-4">${product.price}</p>
           </div>
 
