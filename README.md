@@ -103,7 +103,86 @@ VITE_AIRS_PROFILE_NAME=your-airs-profile-name
 
 **Note:** If credentials are not configured, the system automatically falls back to a mock scanner for demonstration purposes.
 
-### Run Development Server
+## Deployment Options
+
+### Option A: Docker Compose (Recommended)
+
+**Quick Start:**
+
+```bash
+# Build and run
+docker-compose up -d
+
+# Access the application
+open http://localhost:8080
+```
+
+**With Ollama (Local LLM):**
+
+```bash
+# Start with Ollama included
+docker-compose --profile with-ollama up -d
+
+# Pull a model inside Ollama container
+docker exec -it airs-ollama ollama pull llama2
+```
+
+**Environment Variables:**
+
+Create a `.env` file in the project root with your configuration:
+
+```env
+# AIRS
+VITE_AIRS_API_TOKEN=your-token
+VITE_AIRS_PROFILE_NAME=your-profile
+
+# Supabase
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-key
+
+# Vertex AI
+VITE_VERTEX_PROJECT_ID=your-project-id
+VITE_VERTEX_API_KEY=your-api-key
+
+# Anthropic
+VITE_ANTHROPIC_API_KEY=your-anthropic-key
+
+# Azure OpenAI (optional)
+VITE_AZURE_OPENAI_ENDPOINT=your-endpoint
+VITE_AZURE_OPENAI_API_KEY=your-key
+```
+
+**Docker Commands:**
+
+```bash
+# View logs
+docker-compose logs -f app
+
+# Stop services
+docker-compose down
+
+# Rebuild after code changes
+docker-compose up -d --build
+
+# Remove everything including volumes
+docker-compose down -v
+```
+
+**Port Configuration:**
+
+- Application: `http://localhost:8080`
+- Ollama (if enabled): `http://localhost:11434`
+
+To change ports, edit `docker-compose.yml`:
+
+```yaml
+ports:
+  - "3000:80"  # Change 8080 to 3000
+```
+
+### Option B: Local Development
+
+**Run Development Server:**
 
 ```bash
 npm run dev
@@ -111,7 +190,7 @@ npm run dev
 
 The site will be available at `http://localhost:5173` (or the port shown in terminal).
 
-### Build for Production
+**Build for Production:**
 
 ```bash
 npm run build
@@ -540,6 +619,84 @@ Edit `SYSTEM_PROMPT.txt` and upload to your LLM platform (Azure Foundry, etc.)
 - Consider using faster models (GPT-3.5 Turbo vs GPT-4)
 - Use local Ollama for fastest response times
 - Reduce max_tokens in `llmService.ts`
+
+### Docker Issues
+
+#### Container fails to build
+
+- **Build context error**: Ensure you're in project root directory
+  - Run: `cd /path/to/project && docker-compose build`
+- **Node modules error**: Clear npm cache
+  - Run: `docker-compose build --no-cache`
+- **Disk space**: Check available space
+  - Run: `docker system df` and `docker system prune`
+
+#### Container starts but app not accessible
+
+- **Port conflict**: Port 8080 already in use
+  - Change port in `docker-compose.yml`: `"3000:80"`
+  - Or stop conflicting service
+- **Container not healthy**: Check health status
+  - Run: `docker-compose ps`
+  - Run: `docker-compose logs app`
+- **Firewall blocking**: Allow port in firewall
+  - macOS: System Preferences > Security
+  - Linux: `sudo ufw allow 8080`
+
+#### Environment variables not working
+
+- **Missing .env**: Create `.env` file in project root
+- **Vite prefix missing**: All vars must start with `VITE_`
+- **Rebuild required**: Env vars are baked into build
+  - Run: `docker-compose up -d --build`
+- **Quotes in values**: Don't use quotes in `.env` file
+  ```env
+  VITE_API_KEY=abc123  # Correct
+  VITE_API_KEY="abc123"  # Wrong
+  ```
+
+#### Ollama not working in Docker
+
+- **Profile not enabled**: Start with profile
+  - Run: `docker-compose --profile with-ollama up -d`
+- **Model not pulled**: Pull model into container
+  - Run: `docker exec -it airs-ollama ollama pull llama2`
+  - Run: `docker exec -it airs-ollama ollama list`
+- **Network issue**: Verify containers can communicate
+  - Check network: `docker network inspect airs-network`
+  - Ping test: `docker exec airs-chatbot-app ping ollama`
+
+#### Docker Compose commands
+
+```bash
+# View all containers
+docker-compose ps
+
+# View logs (all services)
+docker-compose logs
+
+# View logs (specific service)
+docker-compose logs app
+docker-compose logs ollama
+
+# Follow logs in real-time
+docker-compose logs -f app
+
+# Restart a service
+docker-compose restart app
+
+# Stop all services
+docker-compose down
+
+# Stop and remove volumes
+docker-compose down -v
+
+# Rebuild and restart
+docker-compose up -d --build
+
+# Scale services (not applicable here)
+docker-compose up -d --scale app=3
+```
 
 ### AIRS API returns errors
 
