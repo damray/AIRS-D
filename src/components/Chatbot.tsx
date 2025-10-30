@@ -77,6 +77,10 @@ export default function Chatbot() {
   const [showLogs, setShowLogs] = useState(false);
   const [attackScenarios, setAttackScenarios] = useState<AttackScenario[]>(DEFAULT_ATTACK_SCENARIOS);
   const [editingScenario, setEditingScenario] = useState<string | null>(null);
+  const [chatWidth, setChatWidth] = useState<number>(
+    typeof window !== 'undefined' ? Math.max(500, Math.min(800, window.innerWidth / 3)) : 600
+  );
+  const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +91,40 @@ export default function Chatbot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 400;
+      const maxWidth = window.innerWidth * 0.8;
+
+      setChatWidth(Math.max(minWidth, Math.min(maxWidth, newWidth)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    if (isResizing) {
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = () => {
+    setIsResizing(true);
+  };
 
   const addLog = (action: string, verdict?: string, reason?: string, sanitized?: string) => {
     const now = new Date();
@@ -426,13 +464,24 @@ export default function Chatbot() {
   return (
     <div
       ref={chatWindowRef}
-      className="fixed inset-y-0 right-0 bg-white border-l border-gray-200 shadow-2xl overflow-hidden z-50 flex flex-col"
+      className="fixed inset-y-0 right-0 bg-white border-l border-gray-200 shadow-2xl overflow-hidden z-50 flex"
       style={{
-        width: isMobile ? '100vw' : 'calc(100vw / 3)',
-        maxWidth: isMobile ? '100vw' : '800px',
-        minWidth: isMobile ? '100vw' : '500px'
+        width: isMobile ? '100vw' : `${chatWidth}px`
       }}
     >
+      {/* Resize Handle */}
+      {!isMobile && (
+        <div
+          onMouseDown={handleResizeStart}
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-cyan-400 transition-colors z-10"
+          style={{
+            cursor: 'ew-resize'
+          }}
+        />
+      )}
+
+      {/* Main Content Container */}
+      <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 text-white p-4 flex justify-between items-center flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -629,6 +678,7 @@ export default function Chatbot() {
             </>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
