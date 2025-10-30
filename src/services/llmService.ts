@@ -1,4 +1,5 @@
 import type { ModelConfig } from '../config/models.config';
+import { getSystemPromptWithContext } from './productContext';
 
 interface LLMResponse {
   response: string;
@@ -33,6 +34,7 @@ export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMRe
 };
 
 const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+  const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${model.apiKey}`
@@ -47,7 +49,7 @@ const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResp
           role: 'user',
           parts: [
             {
-              text: `You are Shop Assist, a helpful shopping assistant. Help customers find products, answer questions, and provide excellent service.\n\nUser: ${prompt}`
+              text: `${systemPrompt}\n\nUser: ${prompt}`
             }
           ]
         }
@@ -79,6 +81,7 @@ const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResp
 };
 
 const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+  const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(model.headers || {})
@@ -102,7 +105,7 @@ const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMRespon
       messages: [
         {
           role: 'system',
-          content: 'You are Shop Assist, a helpful shopping assistant. Help customers find products, answer questions, and provide excellent service.'
+          content: systemPrompt
         },
         {
           role: 'user',
@@ -125,6 +128,7 @@ const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMRespon
 };
 
 const callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+  const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-api-key': model.apiKey || '',
@@ -137,7 +141,7 @@ const callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMRes
     body: JSON.stringify({
       model: model.model,
       max_tokens: 500,
-      system: 'You are Shop Assist, a helpful shopping assistant. Help customers find products, answer questions, and provide excellent service.',
+      system: systemPrompt,
       messages: [
         {
           role: 'user',
@@ -158,6 +162,7 @@ const callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMRes
 };
 
 const callOllama = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+  const systemPrompt = getSystemPromptWithContext();
   const response = await fetch(model.apiUrl, {
     method: 'POST',
     headers: {
@@ -168,7 +173,7 @@ const callOllama = async (prompt: string, model: ModelConfig): Promise<LLMRespon
       messages: [
         {
           role: 'system',
-          content: 'You are Shop Assist, a helpful shopping assistant. Help customers find products, answer questions, and provide excellent service.'
+          content: systemPrompt
         },
         {
           role: 'user',
@@ -192,31 +197,73 @@ const callOllama = async (prompt: string, model: ModelConfig): Promise<LLMRespon
 const mockLLMResponse = (prompt: string): LLMResponse => {
   const lowerPrompt = prompt.toLowerCase();
 
-  if (lowerPrompt.includes('product') || lowerPrompt.includes('catalog')) {
+  if (lowerPrompt.includes('hoodie')) {
     return {
-      response: 'We have a great selection of products! Check out our catalog page to browse our latest items including t-shirts, hoodies, and accessories.'
+      response: 'Our Minimal Hoodie ($49.99) is a customer favorite! It\'s a lightweight cotton blend, perfect for everyday wear. Available in sizes S, M, and L.'
     };
   }
 
-  if (lowerPrompt.includes('price') || lowerPrompt.includes('cost')) {
+  if (lowerPrompt.includes('sneaker') || lowerPrompt.includes('shoe')) {
     return {
-      response: 'Our products range from $20 to $80. Would you like to see specific items in your price range?'
+      response: 'Check out our Everyday Sneakers ($79.99)! They feature a breathable mesh upper and cushioned insole for all-day comfort. Available in sizes 40-43.'
+    };
+  }
+
+  if (lowerPrompt.includes('jeans') || lowerPrompt.includes('pants')) {
+    return {
+      response: 'Our Slim Jeans ($59.99) are made with stretch denim for comfort and mobility. Available in sizes 30, 32, and 34 in both dark and light wash.'
+    };
+  }
+
+  if (lowerPrompt.includes('shirt')) {
+    return {
+      response: 'The Casual Shirt ($39.99) is 100% cotton with a relaxed fit. Perfect for work or weekend wear. Available in sizes S, M, and L.'
+    };
+  }
+
+  if (lowerPrompt.includes('bag') || lowerPrompt.includes('tote')) {
+    return {
+      response: 'Our Eco Tote ($19.99) is made from 100% recycled fabric with a spacious interior and water-resistant lining. Great for shopping or daily use!'
+    };
+  }
+
+  if (lowerPrompt.includes('beanie') || lowerPrompt.includes('hat')) {
+    return {
+      response: 'The Beanie ($14.99) is a cozy knit made from soft acrylic blend. One size fits all, available in black, gray, and burgundy.'
+    };
+  }
+
+  if (lowerPrompt.includes('product') || lowerPrompt.includes('catalog') || lowerPrompt.includes('have')) {
+    return {
+      response: 'We have 6 products: Minimal Hoodie ($49.99), Everyday Sneakers ($79.99), Slim Jeans ($59.99), Casual Shirt ($39.99), Eco Tote ($19.99), and Beanie ($14.99). What are you interested in?'
+    };
+  }
+
+  if (lowerPrompt.includes('price') || lowerPrompt.includes('cost') || lowerPrompt.includes('cheap')) {
+    return {
+      response: 'Our products range from $14.99 (Beanie) to $79.99 (Sneakers). Most items are between $40-60. Plus, free shipping on orders over $50!'
     };
   }
 
   if (lowerPrompt.includes('shipping') || lowerPrompt.includes('delivery')) {
     return {
-      response: 'We offer free shipping on orders over $50. Standard delivery takes 3-5 business days.'
+      response: 'We offer free shipping on orders over $50! Standard delivery takes 3-5 business days. All items are in stock and ready to ship.'
+    };
+  }
+
+  if (lowerPrompt.includes('return')) {
+    return {
+      response: 'We have a 30-day return policy on all items. Just contact support@shopsite.com or use our live chat during business hours.'
     };
   }
 
   if (lowerPrompt.includes('hello') || lowerPrompt.includes('hi')) {
     return {
-      response: 'Hello! How can I help you with your shopping today?'
+      response: 'Hello! Welcome to Shop Site. I can help you find products, answer questions about sizes and availability, or explain our shipping and return policies. What can I help you with?'
     };
   }
 
   return {
-    response: 'I\'m here to help! Feel free to ask about our products, prices, or shipping options. This is a demo response since no LLM is configured.'
+    response: 'I\'m Shop Assist, your shopping assistant! I can help you find products from our catalog (hoodies, sneakers, jeans, shirts, totes, beanies), answer questions about pricing, shipping, and returns. What would you like to know?'
   };
 };
