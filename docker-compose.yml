@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: airs-chatbot-app
+    ports:
+      - "8080:80"
+    environment:
+      # AIRS Configuration
+      - VITE_AIRS_API_URL=${VITE_AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
+      - VITE_AIRS_API_TOKEN=${VITE_AIRS_API_TOKEN}
+      - VITE_AIRS_PROFILE_NAME=${VITE_AIRS_PROFILE_NAME}
+
+      # Supabase Configuration
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+
+      # Google Vertex AI Configuration
+      - VITE_VERTEX_PROJECT_ID=${VITE_VERTEX_PROJECT_ID}
+      - VITE_VERTEX_LOCATION=${VITE_VERTEX_LOCATION:-us-central1}
+      - VITE_VERTEX_API_KEY=${VITE_VERTEX_API_KEY}
+
+      # Anthropic Configuration
+      - VITE_ANTHROPIC_API_KEY=${VITE_ANTHROPIC_API_KEY}
+
+      # Ollama Configuration
+      - VITE_OLLAMA_API_URL=${VITE_OLLAMA_API_URL:-http://ollama:11434/api/chat}
+
+      # Azure OpenAI Configuration
+      - VITE_AZURE_OPENAI_ENDPOINT=${VITE_AZURE_OPENAI_ENDPOINT}
+      - VITE_AZURE_OPENAI_API_KEY=${VITE_AZURE_OPENAI_API_KEY}
+      - VITE_AZURE_OPENAI_DEPLOYMENT=${VITE_AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+    networks:
+      - airs-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Ollama (Optional - Local LLM)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: airs-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - airs-network
+    restart: unless-stopped
+    profiles:
+      - with-ollama
+
+networks:
+  airs-network:
+    driver: bridge
+
+volumes:
+  ollama-data:
+    driver: local
