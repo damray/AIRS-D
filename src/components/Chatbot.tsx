@@ -75,7 +75,6 @@ export default function Chatbot() {
   const [airsEnabled, setAirsEnabled] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLogs, setShowLogs] = useState(false);
-  const [showAttackDemo, setShowAttackDemo] = useState(false);
   const [attackScenarios, setAttackScenarios] = useState<AttackScenario[]>(DEFAULT_ATTACK_SCENARIOS);
   const [editingScenario, setEditingScenario] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -332,7 +331,6 @@ export default function Chatbot() {
   };
 
   const runSingleAttack = async (scenario: AttackScenario) => {
-    setShowAttackDemo(false);
     setMessages([
       {
         id: 'demo-start',
@@ -423,22 +421,20 @@ export default function Chatbot() {
     );
   }
 
-  const chatHeight = typeof window !== 'undefined' ? Math.floor(window.innerHeight * 0.5) : 400;
-  const chatWidth = typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.5) : 500;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <div
       ref={chatWindowRef}
-      className="fixed bottom-6 right-6 bg-white border border-gray-200 rounded-lg shadow-2xl overflow-hidden z-50 flex flex-col"
+      className="fixed inset-y-0 right-0 bg-white border-l border-gray-200 shadow-2xl overflow-hidden z-50 flex flex-col"
       style={{
-        width: isMobile ? 'calc(100% - 24px)' : Math.min(chatWidth, 600),
-        height: chatHeight,
-        maxWidth: '100vw'
+        width: isMobile ? '100vw' : 'calc(100vw / 3)',
+        maxWidth: isMobile ? '100vw' : '800px',
+        minWidth: isMobile ? '100vw' : '500px'
       }}
     >
       {/* Header */}
-      <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 text-white p-4 flex justify-between items-center">
+      <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 text-white p-4 flex justify-between items-center flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-cyan-400 font-bold">
             S
@@ -457,7 +453,7 @@ export default function Chatbot() {
       </div>
 
       {/* Controls */}
-      <div className="border-b border-gray-200 px-4 py-3 flex gap-3 items-center justify-between bg-gray-50">
+      <div className="border-b border-gray-200 px-4 py-3 flex gap-3 items-center justify-between bg-gray-50 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Shield className={`w-4 h-4 ${airsEnabled ? 'text-green-500' : 'text-gray-400'}`} />
           <button
@@ -471,169 +467,169 @@ export default function Chatbot() {
             AIRS: {airsEnabled ? 'ON' : 'OFF'}
           </button>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
-          >
-            {showLogs ? 'Hide' : 'Logs'}
-          </button>
-          <button
-            onClick={() => setShowAttackDemo(!showAttackDemo)}
-            className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors font-medium"
-          >
-            {showAttackDemo ? 'Hide' : 'Attack Demo'}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowLogs(!showLogs)}
+          className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"
+        >
+          {showLogs ? 'Hide Chat' : 'Logs'}
+        </button>
       </div>
 
-      {showAttackDemo ? (
-        // Attack Demo Panel
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
-          <div className="bg-red-50 border border-red-200 rounded p-3 text-sm">
-            <h4 className="font-bold text-red-900 mb-1">⚠️ Attack Simulation Lab</h4>
-            <p className="text-red-800 text-xs">
-              Test AIRS protection against common prompt injection attacks. Click edit to customize prompts, then click play to run.
+      {/* Main Content Area - Split View */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Side - Attack Scenarios */}
+        <div className="w-1/2 border-r border-gray-200 flex flex-col bg-gray-50">
+          <div className="px-4 py-3 bg-red-50 border-b border-red-200 flex-shrink-0">
+            <h4 className="font-bold text-red-900 text-sm">⚠️ Attack Simulation Lab</h4>
+            <p className="text-red-800 text-xs mt-1">
+              Click edit to customize, then play to test AIRS protection
             </p>
           </div>
 
-          {attackScenarios.map((scenario) => (
-            <div key={scenario.id} className="bg-white border border-gray-300 rounded-lg p-3 space-y-2">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h5 className="font-bold text-gray-900 text-sm">{scenario.name}</h5>
-                  <p className="text-xs text-gray-600 mt-1">{scenario.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Expected: <span className="font-semibold">{scenario.expected.toUpperCase()}</span>
-                    {scenario.prompts.length > 1 && (
-                      <span className="ml-2 text-purple-600 font-semibold">
-                        ({scenario.prompts.length}-turn attack)
-                      </span>
-                    )}
-                  </p>
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {attackScenarios.map((scenario) => (
+              <div key={scenario.id} className="bg-white border border-gray-300 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h5 className="font-bold text-gray-900 text-sm">{scenario.name}</h5>
+                    <p className="text-xs text-gray-600 mt-1">{scenario.description}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Expected: <span className="font-semibold">{scenario.expected.toUpperCase()}</span>
+                      {scenario.prompts.length > 1 && (
+                        <span className="ml-2 text-purple-600 font-semibold">
+                          ({scenario.prompts.length}-turn)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => setEditingScenario(editingScenario === scenario.id ? null : scenario.id)}
+                      className="p-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                      title="Edit prompts"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => runSingleAttack(scenario)}
+                      disabled={isLoading}
+                      className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
+                      title="Run attack"
+                    >
+                      <Play className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setEditingScenario(editingScenario === scenario.id ? null : scenario.id)}
-                    className="p-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                    title="Edit prompts"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => runSingleAttack(scenario)}
-                    disabled={isLoading}
-                    className="p-1.5 bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
-                    title="Run attack"
-                  >
-                    <Play className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
 
-              {editingScenario === scenario.id && (
-                <div className="space-y-2 pt-2 border-t border-gray-200">
-                  {scenario.prompts.map((prompt, idx) => (
-                    <div key={idx}>
-                      <label className="text-xs font-semibold text-gray-700 block mb-1">
-                        {scenario.prompts.length > 1 ? `Turn ${idx + 1}:` : 'Prompt:'}
-                      </label>
-                      <textarea
-                        value={prompt}
-                        onChange={(e) => updateScenarioPrompt(scenario.id, idx, e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
-                        rows={2}
-                        placeholder="Enter prompt..."
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : showLogs ? (
-        // Logs Panel
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-3 space-y-2 text-xs font-mono">
-          {logs.length === 0 ? (
-            <p className="text-gray-500">No logs yet</p>
-          ) : (
-            logs.map((log, idx) => (
-              <div key={idx} className="bg-white border border-gray-200 p-2 rounded">
-                <p className="text-gray-500">{log.timestamp}</p>
-                <p className="font-semibold text-black">{log.action}</p>
-                {log.verdict && <p className="text-cyan-600">Verdict: {log.verdict}</p>}
-                {log.reason && <p className="text-red-600">Reason: {log.reason}</p>}
-                {log.sanitized && <p className="text-blue-600">Sanitized: {log.sanitized}</p>}
+                {editingScenario === scenario.id && (
+                  <div className="space-y-2 pt-2 border-t border-gray-200">
+                    {scenario.prompts.map((prompt, idx) => (
+                      <div key={idx}>
+                        <label className="text-xs font-semibold text-gray-700 block mb-1">
+                          {scenario.prompts.length > 1 ? `Turn ${idx + 1}:` : 'Prompt:'}
+                        </label>
+                        <textarea
+                          value={prompt}
+                          onChange={(e) => updateScenarioPrompt(scenario.id, idx, e.target.value)}
+                          className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                          rows={2}
+                          placeholder="Enter prompt..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            ))
-          )}
-        </div>
-      ) : (
-        // Messages
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-lg whitespace-pre-wrap text-sm ${
-                  msg.role === 'user'
-                    ? 'bg-cyan-400 text-white'
-                    : msg.verdict === 'block'
-                    ? 'bg-red-50 border border-red-200 text-red-900'
-                    : msg.verdict === 'sanitize'
-                    ? 'bg-yellow-50 border border-yellow-200 text-gray-900'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="px-4 py-2 text-sm text-gray-600">
-                <div className="flex gap-1">
-                  <span className="animate-bounce">●</span>
-                  <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>
-                    ●
-                  </span>
-                  <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>
-                    ●
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-      )}
-
-      {/* Input */}
-      {!showLogs && !showAttackDemo && (
-        <div className="border-t border-gray-200 bg-gray-50 p-3">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Ask anything..."
-              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={isLoading || !input.trim()}
-              className="px-3 py-2 bg-cyan-400 text-white rounded hover:bg-cyan-500 transition-colors disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-            </button>
+            ))}
           </div>
         </div>
-      )}
+
+        {/* Right Side - Chat or Logs */}
+        <div className="w-1/2 flex flex-col">
+          {showLogs ? (
+            // Logs Panel
+            <div className="flex-1 overflow-y-auto bg-gray-50 p-3 space-y-2 text-xs font-mono">
+              {logs.length === 0 ? (
+                <p className="text-gray-500">No logs yet</p>
+              ) : (
+                logs.map((log, idx) => (
+                  <div key={idx} className="bg-white border border-gray-200 p-2 rounded">
+                    <p className="text-gray-500">{log.timestamp}</p>
+                    <p className="font-semibold text-black">{log.action}</p>
+                    {log.verdict && <p className="text-cyan-600">Verdict: {log.verdict}</p>}
+                    {log.reason && <p className="text-red-600">Reason: {log.reason}</p>}
+                    {log.sanitized && <p className="text-blue-600">Sanitized: {log.sanitized}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs px-4 py-2 rounded-lg whitespace-pre-wrap text-sm ${
+                        msg.role === 'user'
+                          ? 'bg-cyan-400 text-white'
+                          : msg.verdict === 'block'
+                          ? 'bg-red-50 border border-red-200 text-red-900'
+                          : msg.verdict === 'sanitize'
+                          ? 'bg-yellow-50 border border-yellow-200 text-gray-900'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="px-4 py-2 text-sm text-gray-600">
+                      <div className="flex gap-1">
+                        <span className="animate-bounce">●</span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>
+                          ●
+                        </span>
+                        <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>
+                          ●
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Input */}
+              <div className="border-t border-gray-200 bg-gray-50 p-3 flex-shrink-0">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    placeholder="Ask anything..."
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !input.trim()}
+                    className="px-3 py-2 bg-cyan-400 text-white rounded hover:bg-cyan-500 transition-colors disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
