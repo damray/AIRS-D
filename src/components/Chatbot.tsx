@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, AlertCircle, CheckCircle, Shield, Edit2, Play } from 'lucide-react';
+import { MessageCircle, X, Send, AlertCircle, CheckCircle, Shield, Edit2, Play, ChevronDown } from 'lucide-react';
+import { getAvailableModels, getDefaultModel, type ModelConfig } from '../config/models.config';
+import { callLLM } from '../services/llmService';
 
 interface Message {
   id: string;
@@ -81,8 +83,12 @@ export default function Chatbot() {
     typeof window !== 'undefined' ? Math.max(500, Math.min(800, window.innerWidth / 3)) : 600
   );
   const [isResizing, setIsResizing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<ModelConfig>(getDefaultModel());
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [availableModels] = useState<ModelConfig[]>(getAvailableModels());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -125,6 +131,17 @@ export default function Chatbot() {
   const handleResizeStart = () => {
     setIsResizing(true);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
+        setShowModelDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const addLog = (action: string, verdict?: string, reason?: string, sanitized?: string) => {
     const now = new Date();
@@ -276,16 +293,17 @@ export default function Chatbot() {
 
   const sendToLLM = async (prompt: string) => {
     try {
-      const response = await fetch('/api/llm/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, airsEnabled })
-      });
-      const data = await response.json();
-      return data.response || 'Unable to generate response.';
+      addLog(`Sending to ${selectedModel.name}`, undefined, undefined, undefined);
+      const result = await callLLM(prompt, selectedModel);
+
+      if (result.error) {
+        addLog(`LLM Error: ${result.error}`, undefined, undefined, undefined);
+      }
+
+      return result.response;
     } catch (error) {
       console.error('LLM error:', error);
-      return 'Unable to connect to the assistant service. In production, this would connect to Azure Foundry.';
+      return `Unable to connect to ${selectedModel.name}. Using mock response.`;
     }
   };
 
@@ -503,7 +521,7 @@ export default function Chatbot() {
 
       {/* Controls */}
       <div className="border-b border-gray-200 px-4 py-3 flex gap-3 items-center justify-between bg-gray-50 flex-shrink-0">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Shield className={`w-4 h-4 ${airsEnabled ? 'text-green-500' : 'text-gray-400'}`} />
           <button
             onClick={() => setAirsEnabled(!airsEnabled)}
@@ -515,7 +533,49 @@ export default function Chatbot() {
           >
             AIRS: {airsEnabled ? 'ON' : 'OFF'}
           </button>
+
+          {/* Model Selector */}
+          <div className="relative" ref={modelDropdownRef}>
+            <button
+              onClick={() => setShowModelDropdown(!showModelDropdown)}
+              className="px-3 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-1"
+              title="Select AI Model"
+            >
+              <span className="font-medium">{selectedModel.name}</span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+
+            {showModelDropdown && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[200px] max-h-[300px] overflow-y-auto">
+                {availableModels.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-500">
+                    No models configured. Check your .env file.
+                  </div>
+                ) : (
+                  availableModels.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => {
+                        setSelectedModel(model);
+                        setShowModelDropdown(false);
+                        addLog(`Switched to ${model.name}`, undefined, undefined, undefined);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 transition-colors ${
+                        selectedModel.id === model.id ? 'bg-cyan-50 font-medium' : ''
+                      }`}
+                    >
+                      <div className="font-medium">{model.name}</div>
+                      {model.description && (
+                        <div className="text-gray-500 text-[10px] mt-0.5">{model.description}</div>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
+
         <button
           onClick={() => setShowLogs(!showLogs)}
           className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors"

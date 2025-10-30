@@ -22,6 +22,57 @@ This project showcases a secure shopping experience where every user message is 
 npm install
 ```
 
+### Configure AI Models
+
+The chatbot supports multiple AI model providers. Configure one or more in your `.env` file:
+
+#### Option 1: OpenAI (GPT-4, GPT-3.5 Turbo)
+
+```env
+VITE_OPENAI_API_KEY=your-openai-api-key-here
+```
+
+Get your API key: https://platform.openai.com/api-keys
+
+#### Option 2: Anthropic Claude (Claude 3 Opus, Sonnet)
+
+```env
+VITE_ANTHROPIC_API_KEY=your-anthropic-api-key-here
+```
+
+Get your API key: https://console.anthropic.com/settings/keys
+
+#### Option 3: Ollama (Local LLMs - Llama 2, Mistral, Code Llama)
+
+```env
+VITE_OLLAMA_API_URL=http://localhost:11434/api/chat
+```
+
+**Setup Ollama:**
+1. Install Ollama: https://ollama.ai/download
+2. Pull a model: `ollama pull llama2`
+3. Start Ollama service: `ollama serve`
+4. Configure API URL (use machine IP if running remotely)
+
+**Remote Ollama:**
+```env
+VITE_OLLAMA_API_URL=http://192.168.1.100:11434/api/chat
+```
+
+#### Option 4: Azure OpenAI
+
+```env
+VITE_AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
+VITE_AZURE_OPENAI_API_KEY=your-azure-api-key-here
+VITE_AZURE_OPENAI_DEPLOYMENT=gpt-4
+```
+
+Get credentials from Azure Portal under your OpenAI resource.
+
+#### Option 5: Mock LLM (No Configuration Needed)
+
+If no API keys are configured, the system automatically uses a mock LLM for demonstration.
+
 ### Configure AIRS API (Optional)
 
 Create or update `.env` file with your Prisma AIRS credentials:
@@ -99,6 +150,54 @@ The chatbot integrates directly with Prisma AIRS API:
 ```
 
 ## Features
+
+### AI Model Selector
+
+The chatbot includes a dropdown to switch between configured AI models in real-time:
+
+**Location**: Control bar, between AIRS toggle and Logs button
+
+**Supported Models**:
+- **OpenAI**: GPT-4, GPT-3.5 Turbo
+- **Anthropic**: Claude 3 Opus, Claude 3 Sonnet
+- **Ollama**: Llama 2, Mistral, Code Llama (local)
+- **Azure OpenAI**: GPT-4, custom deployments
+- **Mock LLM**: Always available for testing
+
+**How to Use**:
+1. Click the model name dropdown in the control bar
+2. Select from available models (configured in `.env`)
+3. Chat immediately switches to the new model
+4. Model changes are logged in the Logs panel
+
+**Custom Model Configuration**:
+
+Edit `src/config/models.config.ts` to add custom models:
+
+```typescript
+{
+  id: 'custom-model',
+  name: 'My Custom Model',
+  provider: 'custom',
+  apiUrl: 'http://your-server.com/api/chat',
+  apiKey: import.meta.env.VITE_CUSTOM_API_KEY,
+  model: 'model-name',
+  enabled: !!import.meta.env.VITE_CUSTOM_API_KEY,
+  description: 'Custom model description',
+  requestFormat: 'openai'  // or 'anthropic', 'ollama', 'custom'
+}
+```
+
+Add corresponding environment variable to `.env`:
+```env
+VITE_CUSTOM_API_KEY=your-api-key-here
+```
+
+**Request Formats**:
+- `openai`: Compatible with OpenAI API format (ChatGPT, Azure, compatible APIs)
+- `anthropic`: Claude API format
+- `ollama`: Ollama API format
+- `custom`: Implement custom logic in `src/services/llmService.ts`
 
 ### AIRS Protection Toggle
 
@@ -352,6 +451,58 @@ Edit `src/components/Chatbot.tsx`:
 Edit `SYSTEM_PROMPT.txt` and upload to your LLM platform (Azure Foundry, etc.)
 
 ## Troubleshooting
+
+### AI Model Issues
+
+#### No models appear in dropdown
+
+- Check that at least one API key is configured in `.env`
+- Verify `.env` file is in project root directory
+- Restart dev server after updating `.env`: `npm run dev`
+- Mock LLM should always be available as fallback
+
+#### OpenAI/Anthropic API errors
+
+- **401 Unauthorized**: API key is invalid or missing
+  - Verify API key in `.env` matches key from provider dashboard
+  - Check for extra spaces or quotes around the key
+- **429 Rate Limit**: Too many requests
+  - Wait before retrying or upgrade API plan
+  - Reduce concurrent requests
+- **Network Error**: Cannot reach API
+  - Check internet connection
+  - Verify firewall allows HTTPS requests
+  - Try different network
+
+#### Ollama not working
+
+- **Connection refused**: Ollama service not running
+  - Start Ollama: `ollama serve`
+  - Check service status: `ollama list`
+- **Model not found**: Model not pulled locally
+  - Pull model: `ollama pull llama2`
+  - List available models: `ollama list`
+- **Remote Ollama**: Cannot connect to IP address
+  - Verify IP address and port are correct
+  - Check firewall allows port 11434
+  - Test connection: `curl http://192.168.1.100:11434/api/tags`
+  - Ensure Ollama is configured to accept remote connections
+
+#### Azure OpenAI errors
+
+- **404 Not Found**: Deployment name or endpoint incorrect
+  - Verify `VITE_AZURE_OPENAI_DEPLOYMENT` matches deployment name in Azure Portal
+  - Check `VITE_AZURE_OPENAI_ENDPOINT` format
+- **403 Forbidden**: API key invalid or permissions issue
+  - Regenerate API key in Azure Portal
+  - Verify resource has proper permissions
+
+#### Model responses are slow
+
+- Check network latency to API endpoint
+- Consider using faster models (GPT-3.5 Turbo vs GPT-4)
+- Use local Ollama for fastest response times
+- Reduce max_tokens in `llmService.ts`
 
 ### AIRS API returns errors
 
