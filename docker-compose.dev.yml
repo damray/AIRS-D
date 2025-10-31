@@ -1,10 +1,52 @@
 version: '3.8'
 
 services:
-  # Development server with hot reload (Vite)
-  dev:
+  # Backend Dev (Node.js avec hot reload)
+  backend-dev:
     image: node:20-alpine
-    container_name: airs-chatbot-dev
+    container_name: airs-chatbot-backend-dev
+    working_dir: /app
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      # Backend Configuration
+      - BACKEND_PORT=3001
+      - FRONTEND_URL=http://localhost:5173
+
+      # AIRS Configuration (secrets cachés)
+      - AIRS_API_URL=${AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
+      - AIRS_API_TOKEN=${AIRS_API_TOKEN}
+      - AIRS_PROFILE_NAME=${AIRS_PROFILE_NAME}
+
+      # Google Vertex AI Configuration
+      - VERTEX_PROJECT_ID=${VERTEX_PROJECT_ID}
+      - VERTEX_LOCATION=${VERTEX_LOCATION:-us-central1}
+      - VERTEX_API_KEY=${VERTEX_API_KEY}
+
+      # Anthropic Configuration
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Ollama Configuration
+      - OLLAMA_API_URL=${OLLAMA_API_URL:-http://ollama:11434/api/chat}
+
+      # Azure OpenAI Configuration
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - airs-network
+    restart: unless-stopped
+    depends_on:
+      - ollama
+
+  # Frontend Dev (Vite avec hot reload)
+  frontend-dev:
+    image: node:20-alpine
+    container_name: airs-chatbot-frontend-dev
     working_dir: /app
     ports:
       - "5173:5173"
@@ -16,40 +58,20 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
 
-      # AIRS Configuration
-      - VITE_AIRS_API_URL=${VITE_AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
-      - VITE_AIRS_API_TOKEN=${VITE_AIRS_API_TOKEN}
-      - VITE_AIRS_PROFILE_NAME=${VITE_AIRS_PROFILE_NAME}
+      # Backend URL
+      - VITE_BACKEND_URL=http://localhost:3001
 
       # Supabase Configuration
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
-
-      # Google Vertex AI Configuration
-      - VITE_VERTEX_PROJECT_ID=${VITE_VERTEX_PROJECT_ID}
-      - VITE_VERTEX_LOCATION=${VITE_VERTEX_LOCATION:-us-central1}
-      - VITE_VERTEX_API_KEY=${VITE_VERTEX_API_KEY}
-
-      # Anthropic Configuration
-      - VITE_ANTHROPIC_API_KEY=${VITE_ANTHROPIC_API_KEY}
-
-      # Ollama Configuration (frontend -> service Docker)
-      - VITE_OLLAMA_API_URL=${VITE_OLLAMA_API_URL:-http://ollama:11434/api/chat}
-
-      #Proxy configuration
-      - VITE_OLLAMA_PROXY_PATH=/ollama          # browser → Vite proxy base path
-      - OLLAMA_INTERNAL_URL=http://ollama:11434 # Vite forwards to this (inside Docker net)
-      
-      # Azure OpenAI Configuration
-      - VITE_AZURE_OPENAI_ENDPOINT=${VITE_AZURE_OPENAI_ENDPOINT}
-      - VITE_AZURE_OPENAI_API_KEY=${VITE_AZURE_OPENAI_API_KEY}
-      - VITE_AZURE_OPENAI_DEPLOYMENT=${VITE_AZURE_OPENAI_DEPLOYMENT:-gpt-4}
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     env_file:
       - .env
     networks:
       - airs-network
     restart: unless-stopped
+    depends_on:
+      - backend-dev
 
   # Ollama (Local LLM server)
   ollama:

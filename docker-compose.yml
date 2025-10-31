@@ -1,48 +1,70 @@
 version: '3.8'
 
 services:
-  # Main application
-  app:
+  # Backend API (Node.js Express)
+  backend:
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
-    container_name: airs-chatbot-app
+    container_name: airs-chatbot-backend
     ports:
-      - "8080:80"
+      - "3001:3001"
     environment:
-      # AIRS Configuration
-      - VITE_AIRS_API_URL=${VITE_AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
-      - VITE_AIRS_API_TOKEN=${VITE_AIRS_API_TOKEN}
-      - VITE_AIRS_PROFILE_NAME=${VITE_AIRS_PROFILE_NAME}
+      # Backend Configuration
+      - BACKEND_PORT=3001
+      - FRONTEND_URL=http://localhost:8080
 
-      # Supabase Configuration
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      # AIRS Configuration (secrets cachés)
+      - AIRS_API_URL=${AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
+      - AIRS_API_TOKEN=${AIRS_API_TOKEN}
+      - AIRS_PROFILE_NAME=${AIRS_PROFILE_NAME}
 
       # Google Vertex AI Configuration
-      - VITE_VERTEX_PROJECT_ID=${VITE_VERTEX_PROJECT_ID}
-      - VITE_VERTEX_LOCATION=${VITE_VERTEX_LOCATION:-us-central1}
-      - VITE_VERTEX_API_KEY=${VITE_VERTEX_API_KEY}
+      - VERTEX_PROJECT_ID=${VERTEX_PROJECT_ID}
+      - VERTEX_LOCATION=${VERTEX_LOCATION:-us-central1}
+      - VERTEX_API_KEY=${VERTEX_API_KEY}
 
       # Anthropic Configuration
-      - VITE_ANTHROPIC_API_KEY=${VITE_ANTHROPIC_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 
       # Ollama Configuration
-      - VITE_OLLAMA_API_URL=${VITE_OLLAMA_API_URL:-http://ollama:11434/api/chat}
+      - OLLAMA_API_URL=${OLLAMA_API_URL:-http://ollama:11434/api/chat}
 
       # Azure OpenAI Configuration
-      - VITE_AZURE_OPENAI_ENDPOINT=${VITE_AZURE_OPENAI_ENDPOINT}
-      - VITE_AZURE_OPENAI_API_KEY=${VITE_AZURE_OPENAI_API_KEY}
-      - VITE_AZURE_OPENAI_DEPLOYMENT=${VITE_AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
     networks:
       - airs-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
+    depends_on:
+      - ollama
+
+  # Frontend (React + Nginx)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - VITE_BACKEND_URL=http://backend:3001
+    container_name: airs-chatbot-frontend
+    ports:
+      - "8080:80"
+    environment:
+      - VITE_BACKEND_URL=http://localhost:3001
+      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+    networks:
+      - airs-network
+    restart: unless-stopped
+    depends_on:
+      - backend
 
   # Ollama (Optional - Local LLM)
   ollama:
