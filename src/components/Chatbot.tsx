@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, AlertCircle, CheckCircle, Shield, Edit2, Play, ChevronDown } from 'lucide-react';
 import { getAvailableModels, getDefaultModel, type ModelConfig } from '../config/models.config';
 import { callLLM } from '../services/llmService';
+import { calculateCost, formatCost, formatTokens } from '../utils/tokenCounter';
 
 interface Message {
   id: string;
@@ -9,6 +10,12 @@ interface Message {
   content: string;
   verdict?: 'allow' | 'block' | 'sanitize';
   reason?: string;
+  tokenUsage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  cost?: number;
 }
 
 interface LogEntry {
@@ -130,6 +137,22 @@ export default function Chatbot() {
 
   const handleResizeStart = () => {
     setIsResizing(true);
+  };
+
+  const getTotalStats = () => {
+    let totalTokens = 0;
+    let totalCost = 0;
+
+    messages.forEach(msg => {
+      if (msg.tokenUsage) {
+        totalTokens += msg.tokenUsage.totalTokens;
+      }
+      if (msg.cost) {
+        totalCost += msg.cost;
+      }
+    });
+
+    return { totalTokens, totalCost };
   };
 
   useEffect(() => {
@@ -300,10 +323,13 @@ export default function Chatbot() {
         addLog(`LLM Error: ${result.error}`, undefined, undefined, undefined);
       }
 
-      return result.response;
+      return result;
     } catch (error) {
       console.error('LLM error:', error);
-      return `Unable to connect to ${selectedModel.name}. Using mock response.`;
+      return {
+        response: `Unable to connect to ${selectedModel.name}. Using mock response.`,
+        tokenUsage: undefined
+      };
     }
   };
 
@@ -360,13 +386,17 @@ export default function Chatbot() {
       addLog('Message sent (AIRS OFF)', 'none', 'Protection disabled', undefined);
     }
 
-    const response = await sendToLLM(finalPrompt);
+    const llmResult = await sendToLLM(finalPrompt);
+
+    const cost = llmResult.tokenUsage ? calculateCost(llmResult.tokenUsage, selectedModel.model) : 0;
 
     const assistantMessage: Message = {
       id: (Date.now() + 2).toString(),
       role: 'assistant',
-      content: airsEnabled ? `[AIRS: ${verdict}]\n\n${response}` : response,
+      content: airsEnabled ? `[AIRS: ${verdict}]\n\n${llmResult.response}` : llmResult.response,
       verdict: verdict as any,
+      tokenUsage: llmResult.tokenUsage,
+      cost,
       reason
     };
 
@@ -511,12 +541,25 @@ export default function Chatbot() {
             <p className="text-xs opacity-90">Secure AI Shopping</p>
           </div>
         </div>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="hover:bg-white hover:bg-opacity-20 p-1 rounded transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          {(() => {
+            const stats = getTotalStats();
+            return stats.totalTokens > 0 && (
+              <div className="text-xs bg-white bg-opacity-20 px-3 py-1 rounded flex items-center gap-2">
+                <span title="Total Tokens">💬 {formatTokens(stats.totalTokens)}</span>
+                {stats.totalCost > 0 && (
+                  <span title="Total Cost">💰 {formatCost(stats.totalCost)}</span>
+                )}
+              </div>
+            );
+          })()}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="hover:bg-white hover:bg-opacity-20 p-1 rounded transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Controls */}
@@ -693,6 +736,26 @@ export default function Chatbot() {
                       }`}
                     >
                       {msg.content}
+                      {msg.role === 'assistant' && msg.tokenUsage && (
+                        <div className="mt-2 pt-2 border-t border-gray-300 text-xs opacity-75">
+                          <div className="flex items-center gap-4">
+                            <span title="Prompt Tokens">
+                              📥 {formatTokens(msg.tokenUsage.promptTokens)}
+                            </span>
+                            <span title="Completion Tokens">
+                              📤 {formatTokens(msg.tokenUsage.completionTokens)}
+                            </span>
+                            <span title="Total Tokens">
+                              💬 {formatTokens(msg.tokenUsage.totalTokens)}
+                            </span>
+                            {msg.cost !== undefined && msg.cost > 0 && (
+                              <span title="Estimated Cost" className="font-semibold">
+                                💰 {formatCost(msg.cost)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
