@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # Development server with hot reload
+  # Development server with hot reload (Vite)
   dev:
     image: node:20-alpine
     container_name: airs-chatbot-dev
@@ -12,6 +12,10 @@ services:
       - .:/app
       - /app/node_modules
     environment:
+      # Rendez le watcher plus robuste dans Docker (Mac/Windows)
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+
       # AIRS Configuration
       - VITE_AIRS_API_URL=${VITE_AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
       - VITE_AIRS_API_TOKEN=${VITE_AIRS_API_TOKEN}
@@ -29,29 +33,73 @@ services:
       # Anthropic Configuration
       - VITE_ANTHROPIC_API_KEY=${VITE_ANTHROPIC_API_KEY}
 
-      # Ollama Configuration
+      # Ollama Configuration (frontend -> service Docker)
       - VITE_OLLAMA_API_URL=${VITE_OLLAMA_API_URL:-http://ollama:11434/api/chat}
 
+      #Proxy configuration
+      - VITE_OLLAMA_PROXY_PATH=/ollama          # browser → Vite proxy base path
+      - OLLAMA_INTERNAL_URL=http://ollama:11434 # Vite forwards to this (inside Docker net)
+      
       # Azure OpenAI Configuration
       - VITE_AZURE_OPENAI_ENDPOINT=${VITE_AZURE_OPENAI_ENDPOINT}
       - VITE_AZURE_OPENAI_API_KEY=${VITE_AZURE_OPENAI_API_KEY}
       - VITE_AZURE_OPENAI_DEPLOYMENT=${VITE_AZURE_OPENAI_DEPLOYMENT:-gpt-4}
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
     networks:
       - airs-network
     restart: unless-stopped
 
-  # Ollama (Optional - Local LLM)
+  # Ollama (Local LLM server)
   ollama:
     image: ollama/ollama:latest
     container_name: airs-ollama-dev
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - ollama-data:/root/.ollama   # persist models
     networks:
       - airs-network
     restart: unless-stopped
+    profiles:
+      - with-ollama
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    # GPU (optionnel, si NVIDIA runtime dispo)
+    # gpus: all
+
+  # One-shot job to pull models if missing
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: airs-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+
+      - OLLAMA_MODELS=llama3.1:8b mistral:7b-instruct
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - airs-network
+    restart: "no"
+    entrypoint: ["/bin/sh","-lc"]
+    command: |
+      set -e
+      echo "Models to ensure present: $OLLAMA_MODELS"
+      for m in $OLLAMA_MODELS; do
+        if ollama list | awk '{print $1":"$2}' | grep -q "^${m}$"; then
+          echo "✔ $m already present, skipping pull"
+        else
+          echo "↓ Pulling $m ..."
+          ollama pull "$m"
+        fi
+      done
+      echo "All requested models are available."
     profiles:
       - with-ollama
 

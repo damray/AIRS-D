@@ -12,6 +12,8 @@ export interface ModelConfig {
   projectId?: string;
   location?: string;
 }
+// helper: proxy base is env-driven (falls back to /ollama)
+const OLLAMA_BASE = (import.meta.env.VITE_OLLAMA_PROXY_PATH || '/ollama') + '/api/chat';
 
 export const MODELS: ModelConfig[] = [
   {
@@ -69,34 +71,34 @@ export const MODELS: ModelConfig[] = [
     }
   },
   {
-    id: 'ollama-llama2',
-    name: 'Llama 2 (Ollama)',
+    id: 'ollama-llama3',
+    name: 'Llama 3.1 (Ollama)',
     provider: 'ollama',
-    apiUrl: import.meta.env.VITE_OLLAMA_API_URL || 'http://localhost:11434/api/chat',
-    model: 'llama2',
-    enabled: !!import.meta.env.VITE_OLLAMA_API_URL,
-    description: 'Llama 2 via Ollama',
-    requestFormat: 'ollama'
+    apiUrl: OLLAMA_BASE,
+    model: 'llama3.1:8b',          // match what you pulled
+    enabled: true,                  // proxy handles routing; no browser → container leak
+    description: 'Llama 3.1 via Ollama',
+    requestFormat: 'ollama',
   },
   {
     id: 'ollama-mistral',
     name: 'Mistral (Ollama)',
     provider: 'ollama',
-    apiUrl: import.meta.env.VITE_OLLAMA_API_URL || 'http://localhost:11434/api/chat',
-    model: 'mistral',
-    enabled: !!import.meta.env.VITE_OLLAMA_API_URL,
+    apiUrl: OLLAMA_BASE,
+    model: 'mistral:7b-instruct',   // match what you pulled
+    enabled: true,
     description: 'Mistral via Ollama',
-    requestFormat: 'ollama'
+    requestFormat: 'ollama',
   },
   {
     id: 'ollama-codellama',
     name: 'Code Llama (Ollama)',
     provider: 'ollama',
-    apiUrl: import.meta.env.VITE_OLLAMA_API_URL || 'http://localhost:11434/api/chat',
-    model: 'codellama',
-    enabled: !!import.meta.env.VITE_OLLAMA_API_URL,
+    apiUrl: OLLAMA_BASE,
+    model: 'codellama:7b',          // adjust to a real tag you have/pull
+    enabled: true,
     description: 'Code Llama via Ollama',
-    requestFormat: 'ollama'
+    requestFormat: 'ollama',
   },
   {
     id: 'azure-gpt4',

@@ -35,7 +35,7 @@ export const PRODUCTS = [
     sizes: ['S', 'M', 'L'],
     desc: 'Breathable cotton',
     fullDesc: '100% cotton casual button-down shirt with breathable fabric. Features a relaxed collar, button-front closure, and chest pocket. Ideal for work or weekend wear.',
-    image: 'https://images.pexels.com/photos/2220315/pexels-photo-2220315.jpeg?auto=compress&cs=tinysrgb&w=800'
+    image: 'https://images.pexels.com/photos/769749/pexels-photo-769749.jpeg?auto=compress&cs=tinysrgb&w=800'
   },
   {
     id: 105,
@@ -47,6 +47,14 @@ export const PRODUCTS = [
   },
   {
     id: 106,
+    name: 'AIRS',
+    price: 1,
+    desc: 'Palo Alto AIRS Services',
+    fullDesc: 'Sustainable tote bag made from 100% recycled fabric. Spacious interior with interior pocket, reinforced handles, and water-resistant lining. Perfect for shopping or daily use.',
+    image: 'https://images.pexels.com/photos/5952738/pexels-photo-5952738.jpeg?auto=compress&cs=tinysrgb&w=800'
+  },
+  {
+    id: 107,
     name: 'Beanie',
     price: 14.99,
     desc: 'Warm and compact',
