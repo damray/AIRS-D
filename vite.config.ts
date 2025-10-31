@@ -1,21 +1,39 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
-  plugins: [react()],
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
-  server: {
-    host: true,            // écoute sur 0.0.0.0 (obligatoire en Docker)
-    port: 5173,            // même port que dans docker-compose
-    strictPort: true,      // évite qu’il choisisse un autre port si 5173 est pris
-    watch: {
-      usePolling: true,    // utile quand Docker n’envoie pas les événements inotify
+function escapeForRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), ''); // load ALL env vars
+  const PROXY_PATH = (env.VITE_OLLAMA_PROXY_PATH || '/ollama').replace(/\/+$/, ''); // strip trailing slash
+  const TARGET = env.OLLAMA_INTERNAL_URL || 'http://ollama:11434';
+
+  // Debug mapping at startup
+  console.log(`[vite proxy] ${PROXY_PATH} -> ${TARGET}`);
+
+  return {
+    plugins: [react()],
+    server: {
+      host: true,
+      port: 5173,
+      strictPort: true,
+      watch: { usePolling: true },
+      hmr: { host: 'localhost', port: 5173 },
+      proxy: {
+        // Browser calls /ollama/...; Vite forwards to http://ollama:11434/...
+        [PROXY_PATH]: {
+          target: TARGET,
+          changeOrigin: true,
+          // Strip the prefix so /ollama/api/... -> /api/...
+          rewrite: (path) => path.replace(
+            new RegExp(`^${escapeForRegExp(PROXY_PATH)}(?=/|$)`),
+            ''
+          ),
+        },
+      },
     },
-    hmr: {
-      host: 'localhost',   // adresse que ton navigateur utilise
-      port: 5173,          // port WebSocket pour le hot reload
-    },
-  },
+    optimizeDeps: { exclude: ['lucide-react'] },
+  };
 });

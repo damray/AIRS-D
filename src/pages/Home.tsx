@@ -5,7 +5,7 @@ export default function HomePage({ onNavigate }) {
       <section className="py-20">
         <div className="text-center space-y-6">
           <h1 className="text-5xl md:text-6xl font-light tracking-tight text-black">
-            Minimal & Modern
+            Modern Shopping
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Beautifully simple retail experience with AI-powered shopping assistance. Secure by design.
