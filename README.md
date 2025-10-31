@@ -22,92 +22,47 @@ This project showcases a secure shopping experience where every user message is 
 npm install
 ```
 
-### Configure AI Models
+### Configuration Backend Sécurisé
 
-The chatbot supports multiple AI model providers. Configure one or more in your `.env` file:
+**IMPORTANT**: Le système utilise maintenant un backend Node.js pour cacher les clés API.
 
-#### Option 1: Google Vertex AI (Gemini Pro, Gemini Pro Vision)
+### Configuration en 3 étapes:
 
-```env
-VITE_VERTEX_PROJECT_ID=your-gcp-project-id
-VITE_VERTEX_LOCATION=us-central1
-VITE_VERTEX_API_KEY=your-vertex-api-key-here
-```
+1. **Éditez `server/.env`** avec vos clés API réelles:
+   ```env
+   VERTEX_API_KEY=votre-cle
+   ANTHROPIC_API_KEY=votre-cle
+   AZURE_OPENAI_API_KEY=votre-cle
+   AIRS_API_TOKEN=votre-cle
+   ```
 
-**Setup Vertex AI:**
-1. Go to Google Cloud Console: https://console.cloud.google.com/vertex-ai
-2. Enable Vertex AI API for your project
-3. Create a service account with Vertex AI User role
-4. Generate API key or use OAuth 2.0 access token
-5. Set your project ID and preferred location (e.g., us-central1, europe-west1)
+2. **Démarrez le backend**:
+   ```bash
+   cd server
+   npm install
+   npm start
+   ```
 
-**Generate Access Token (Alternative to API Key):**
-```bash
-gcloud auth application-default print-access-token
-```
+3. **Démarrez le frontend** (autre terminal):
+   ```bash
+   npm run dev
+   ```
 
-**Available Locations:**
-- `us-central1` (Iowa)
-- `us-east1` (South Carolina)
-- `europe-west1` (Belgium)
-- `asia-northeast1` (Tokyo)
+Voir `BACKEND_SETUP.md` pour plus de détails.
 
-#### Option 2: Anthropic Claude (Claude 3 Opus, Sonnet)
-
-```env
-VITE_ANTHROPIC_API_KEY=your-anthropic-api-key-here
-```
-
-Get your API key: https://console.anthropic.com/settings/keys
-
-#### Option 3: Ollama (Local LLMs - Llama 2, Mistral, Code Llama)
-
-```env
-VITE_OLLAMA_API_URL=http://localhost:11434/api/chat
-```
-
-**Setup Ollama:**
-1. Install Ollama: https://ollama.ai/download
-2. Pull a model: `ollama pull llama2`
-3. Start Ollama service: `ollama serve`
-4. Configure API URL (use machine IP if running remotely)
-
-**Remote Ollama:**
-```env
-VITE_OLLAMA_API_URL=http://192.168.1.100:11434/api/chat
-```
-
-#### Option 4: Azure OpenAI
-
-```env
-VITE_AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
-VITE_AZURE_OPENAI_API_KEY=your-azure-api-key-here
-VITE_AZURE_OPENAI_DEPLOYMENT=gpt-4
-```
-
-Get credentials from Azure Portal under your OpenAI resource.
-
-#### Option 5: Mock LLM (No Configuration Needed)
-
-If no API keys are configured, the system automatically uses a mock LLM for demonstration.
-
-### Configure AIRS API (Optional)
-
-Create or update `.env` file with your Prisma AIRS credentials:
-
-```env
-VITE_AIRS_API_URL=https://service.api.aisecurity.paloaltonetworks.com
-VITE_AIRS_API_TOKEN=your-airs-api-token-here
-VITE_AIRS_PROFILE_NAME=your-airs-profile-name
-```
-
-**Note:** If credentials are not configured, the system automatically falls back to a mock scanner for demonstration purposes.
+**Note:** Si aucune clé n'est configurée, un mock LLM est utilisé automatiquement.
 
 ## Démarrage Rapide
 
 ### Développement Local
 
 ```bash
+# Terminal 1: Backend
+cd server
+npm install
+npm start
+
+# Terminal 2: Frontend
 npm install
 npm run dev
 ```
@@ -116,30 +71,27 @@ Accédez à `http://localhost:5173`
 
 ### Production
 
-```bash
-npm run build
-# Déployez le dossier dist/ sur Vercel, Netlify, etc.
-```
-
-### Docker (Optionnel)
-
-```bash
-docker-compose up -d
-# Accès: http://localhost:8080
-```
+1. Déployez le backend (Heroku, Railway, etc.)
+2. Build et déployez le frontend (Vercel, Netlify)
+   ```bash
+   npm run build
+   # Configurez VITE_BACKEND_URL=https://votre-backend-prod.com
+   ```
 
 ## Architecture
 
 ```
-Utilisateur → Chatbot → [AIRS Scan] → LLM → Réponse
-                            ↓
-                     block/allow/sanitize
+Navigateur → Frontend (React) → Backend Express (Node.js) → API LLM
+                                         ↓
+                                    [AIRS Scan]
+                                         ↓
+                                  block/allow/sanitize
 ```
 
-- **Frontend**: React + Tailwind CSS
-- **LLM**: Routage automatique (Vertex AI, Anthropic, Azure, Ollama, Mock)
-- **AIRS**: Scan de sécurité en temps réel (ou mock si non configuré)
-- **No Backend Required**: Tout en frontend avec configuration `.env`
+- **Frontend**: React + Tailwind CSS (navigateur utilisateur)
+- **Backend**: Node.js Express (cache les clés API) ✅
+- **LLM**: Routage automatique (Vertex AI, Anthropic, Azure, Ollama)
+- **AIRS**: Scan de sécurité en temps réel
 
 ## Fonctionnalités
 

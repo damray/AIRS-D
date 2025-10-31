@@ -209,14 +209,13 @@ export default function Chatbot() {
         ]
       };
 
-      const response = await fetch(`${airsApiUrl}/v1/scan/sync/request`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await fetch(`${backendUrl}/api/airs/scan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'x-pan-token': airsApiToken
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({ prompt })
       });
 
       if (!response.ok) {

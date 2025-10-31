@@ -8,24 +8,42 @@ interface LLMResponse {
   tokenUsage?: TokenUsage;
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+
 export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   if (model.provider === 'custom' && model.model === 'mock') {
     return mockLLMResponse(prompt);
   }
 
   try {
-    switch (model.requestFormat) {
-      case 'vertex':
-        return await callVertexAI(prompt, model);
-      case 'openai':
-        return await callOpenAI(prompt, model);
-      case 'anthropic':
-        return await callAnthropic(prompt, model);
-      case 'ollama':
-        return await callOllama(prompt, model);
-      default:
-        return mockLLMResponse(prompt);
+    const response = await fetch(`${BACKEND_URL}/api/llm/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        provider: model.provider,
+        model: model.model
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend error: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    const tokenUsage: TokenUsage = {
+      promptTokens: estimateTokens(prompt),
+      completionTokens: estimateTokens(data.response),
+      totalTokens: estimateTokens(prompt + data.response)
+    };
+
+    return {
+      response: data.response,
+      tokenUsage
+    };
   } catch (error) {
     console.error('LLM error:', error);
     return {
@@ -35,7 +53,7 @@ export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMRe
   }
 };
 
-const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+const _callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -92,7 +110,7 @@ const callVertexAI = async (prompt: string, model: ModelConfig): Promise<LLMResp
   };
 };
 
-const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+const _callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -147,7 +165,7 @@ const callOpenAI = async (prompt: string, model: ModelConfig): Promise<LLMRespon
   };
 };
 
-const callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+const _callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   const systemPrompt = getSystemPromptWithContext();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -189,7 +207,7 @@ const callAnthropic = async (prompt: string, model: ModelConfig): Promise<LLMRes
   };
 };
 
-const callOllama = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
+const _callOllama = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   const systemPrompt = getSystemPromptWithContext();
   const response = await fetch(model.apiUrl, {
     method: 'POST',
