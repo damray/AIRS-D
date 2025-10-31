@@ -83,9 +83,59 @@ curl -X POST http://localhost:3001/api/llm/chat \
   -d '{"prompt":"What products do you have?","provider":"vertex","model":"gemini-pro"}'
 ```
 
-## Déploiement Production
+## Déploiement avec Docker
 
-### Option 1: Hébergement séparé
+### Production (docker-compose.yml)
+
+2 containers séparés: frontend (Nginx) + backend (Node.js)
+
+```bash
+# 1. Copiez et configurez les variables
+cp .env.docker .env
+# Éditez .env avec vos vraies clés
+
+# 2. Démarrer les services
+docker-compose up -d
+
+# 3. Accéder
+# Frontend: http://localhost:8080
+# Backend: http://localhost:3001
+
+# 4. Avec Ollama (optionnel)
+docker-compose --profile with-ollama up -d
+```
+
+### Développement (docker-compose.dev.yml)
+
+Hot reload pour frontend ET backend!
+
+```bash
+# Démarrer en mode dev
+docker-compose -f docker-compose.dev.yml up -d
+
+# Frontend: http://localhost:5173 (Vite hot reload)
+# Backend: http://localhost:3001 (Node --watch)
+
+# Avec Ollama
+docker-compose -f docker-compose.dev.yml --profile with-ollama up -d
+```
+
+### Architecture Docker
+
+```
+┌─────────────────┐      ┌─────────────────┐
+│   Frontend      │─────▶│   Backend       │
+│   (Nginx:8080)  │      │   (Node:3001)   │
+│   React Build   │      │   Express       │
+└─────────────────┘      └────────┬────────┘
+                                  │
+                         ┌────────▼────────┐
+                         │   Ollama:11434  │
+                         │   (optionnel)   │
+                         └─────────────────┘
+```
+
+### Option Alternative: Hébergement Cloud
 
 1. **Backend**: Déployez sur Heroku, Railway, DigitalOcean, etc.
 2. **Frontend**: Build et déployez sur Vercel, Netlify, etc.
@@ -96,13 +146,6 @@ npm run build
 
 # Configurez VITE_BACKEND_URL dans Vercel/Netlify
 VITE_BACKEND_URL=https://votre-backend-prod.com
-```
-
-### Option 2: Docker
-
-```bash
-# Build et démarrer tout
-docker-compose up -d
 ```
 
 ## Sécurité
