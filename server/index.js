@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pool from './db.js';
+import { registerUser, loginUser, authMiddleware } from './auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -313,7 +315,173 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await registerUser(email, password);
+    res.status(201).json({ message: 'User registered successfully', user });
+  } catch (error) {
+    console.error('Registration error:', error);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const result = await loginUser(email, password);
+    res.json(result);
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(401).json({ error: error.message });
+  }
+});
+
+app.get('/api/products', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, description, price, image_url, stock, category FROM products ORDER BY id'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Products fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'SELECT id, name, description, price, image_url, stock, category FROM products WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Product fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+});
+
+app.get('/api/cart', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.quantity, c.added_at,
+              p.id as product_id, p.name, p.description, p.price, p.image_url, p.stock
+       FROM cart_items c
+       JOIN products p ON c.product_id = p.id
+       WHERE c.user_id = $1
+       ORDER BY c.added_at DESC`,
+      [req.user.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Cart fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch cart' });
+  }
+});
+
+app.post('/api/cart/add', authMiddleware, async (req, res) => {
+  try {
+    const { productId, quantity = 1 } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ error: 'Product ID is required' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO cart_items (user_id, product_id, quantity)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, product_id)
+       DO UPDATE SET quantity = cart_items.quantity + $3
+       RETURNING id`,
+      [req.user.userId, productId, quantity]
+    );
+
+    res.json({ message: 'Product added to cart', cartItemId: result.rows[0].id });
+  } catch (error) {
+    console.error('Add to cart error:', error);
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
+});
+
+app.put('/api/cart/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { quantity } = req.body;
+
+    if (!quantity || quantity < 1) {
+      return res.status(400).json({ error: 'Valid quantity is required' });
+    }
+
+    const result = await pool.query(
+      'UPDATE cart_items SET quantity = $1 WHERE id = $2 AND user_id = $3 RETURNING id',
+      [quantity, id, req.user.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cart item not found' });
+    }
+
+    res.json({ message: 'Cart updated successfully' });
+  } catch (error) {
+    console.error('Cart update error:', error);
+    res.status(500).json({ error: 'Failed to update cart' });
+  }
+});
+
+app.delete('/api/cart/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      'DELETE FROM cart_items WHERE id = $1 AND user_id = $2 RETURNING id',
+      [id, req.user.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cart item not found' });
+    }
+
+    res.json({ message: 'Item removed from cart' });
+  } catch (error) {
+    console.error('Cart delete error:', error);
+    res.status(500).json({ error: 'Failed to remove item' });
+  }
+});
+
+app.delete('/api/cart', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM cart_items WHERE user_id = $1', [req.user.userId]);
+    res.json({ message: 'Cart cleared successfully' });
+  } catch (error) {
+    console.error('Cart clear error:', error);
+    res.status(500).json({ error: 'Failed to clear cart' });
+  }
+});
+
+app.listen(PORT, async () => {
   console.log(`🚀 Backend server running on http://localhost:${PORT}`);
   console.log(`📝 System prompt loaded (${systemPrompt.length} chars)`);
   console.log(`🔐 AIRS configured: ${!!(process.env.AIRS_API_TOKEN)}`);
@@ -321,4 +489,11 @@ app.listen(PORT, () => {
   console.log(`🤖 Anthropic configured: ${!!(process.env.ANTHROPIC_API_KEY)}`);
   console.log(`🤖 Azure OpenAI configured: ${!!(process.env.AZURE_OPENAI_API_KEY)}`);
   console.log(`🤖 Ollama configured: ${!!(process.env.OLLAMA_API_URL)}`);
+
+  try {
+    await pool.query('SELECT NOW()');
+    console.log('✅ Database connection successful');
+  } catch (error) {
+    console.error('❌ Database connection failed:', error.message);
+  }
 });

@@ -1,89 +1,97 @@
 version: '3.8'
 
 services:
-  # Backend API (Node.js Express)
+  postgres:
+    image: postgres:16-alpine
+    container_name: shop-assist-postgres
+    environment:
+      POSTGRES_DB: shop_assist
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - shop-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d shop_assist"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: airs-chatbot-backend
+    container_name: shop-assist-backend
     ports:
       - "3001:3001"
     environment:
-      # Backend Configuration
-      - BACKEND_PORT=3001
-      - FRONTEND_URL=http://localhost:8080
-
-      # AIRS Configuration (secrets cachés)
-      - AIRS_API_URL=${AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
-      - AIRS_API_TOKEN=${AIRS_API_TOKEN}
-      - AIRS_PROFILE_NAME=${AIRS_PROFILE_NAME}
-
-      # Google Vertex AI Configuration
-      - VERTEX_PROJECT_ID=${VERTEX_PROJECT_ID}
-      - VERTEX_LOCATION=${VERTEX_LOCATION:-us-central1}
-      - VERTEX_API_KEY=${VERTEX_API_KEY}
-
-      # Anthropic Configuration
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
-      # Ollama Configuration
-      - OLLAMA_API_URL=${OLLAMA_API_URL:-http://ollama:11434/api/chat}
-
-      # Azure OpenAI Configuration
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
-      - AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+      BACKEND_PORT: 3001
+      FRONTEND_URL: http://localhost:80
+      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@postgres:5432/shop_assist
+      JWT_SECRET: ${JWT_SECRET}
+      AIRS_API_URL: ${AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
+      AIRS_API_TOKEN: ${AIRS_API_TOKEN}
+      AIRS_PROFILE_NAME: ${AIRS_PROFILE_NAME}
+      VERTEX_PROJECT_ID: ${VERTEX_PROJECT_ID}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
+      VERTEX_API_KEY: ${VERTEX_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OLLAMA_API_URL: ${OLLAMA_API_URL:-http://ollama:11434/api/chat}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
     networks:
-      - airs-network
+      - shop-network
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-    depends_on:
-      - ollama
+      start_period: 15s
 
-  # Frontend (React + Nginx)
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        - VITE_BACKEND_URL=http://backend:3001
-    container_name: airs-chatbot-frontend
+        VITE_BACKEND_URL: http://localhost:3001
+    container_name: shop-assist-frontend
     ports:
-      - "8080:80"
-    environment:
-      - VITE_BACKEND_URL=http://localhost:3001
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      - "80:80"
     networks:
-      - airs-network
+      - shop-network
     restart: unless-stopped
     depends_on:
       - backend
 
-  # Ollama (Optional - Local LLM)
   ollama:
     image: ollama/ollama:latest
-    container_name: airs-ollama
+    container_name: shop-assist-ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
     networks:
-      - airs-network
+      - shop-network
     restart: unless-stopped
     profiles:
       - with-ollama
 
 networks:
-  airs-network:
+  shop-network:
     driver: bridge
 
 volumes:
+  postgres-data:
+    driver: local
   ollama-data:
     driver: local

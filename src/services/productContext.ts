@@ -1,13 +1,16 @@
-import { PRODUCTS } from '../pages/Catalog';
-
 export const getProductContext = (): string => {
-  const productList = PRODUCTS.map(product => {
-    const sizesStr = product.sizes
-      ? ` Available sizes: ${product.sizes.join(', ')}`
-      : '';
-
-    return `- ${product.name} ($${product.price})${sizesStr}\n  Description: ${product.fullDesc}`;
-  }).join('\n\n');
+  const productList = `
+- Laptop Pro 15" ($1299.99) - High-performance laptop with 16GB RAM and 512GB SSD
+- Wireless Mouse ($29.99) - Ergonomic wireless mouse with precision tracking
+- USB-C Hub ($49.99) - 7-in-1 USB-C hub with HDMI, USB 3.0, and SD card reader
+- Mechanical Keyboard ($89.99) - RGB backlit mechanical keyboard with blue switches
+- Noise-Canceling Headphones ($249.99) - Premium wireless headphones with active noise cancellation
+- 4K Monitor 27" ($399.99) - Ultra HD 4K monitor with HDR support
+- Webcam HD ($79.99) - 1080p webcam with auto-focus and built-in microphone
+- Portable SSD 1TB ($129.99) - Ultra-fast portable SSD with USB-C connectivity
+- Desk Lamp LED ($39.99) - Adjustable LED desk lamp with USB charging port
+- Office Chair Ergonomic ($199.99) - Ergonomic office chair with lumbar support
+  `.trim();
 
   return `
 AVAILABLE PRODUCTS IN OUR CATALOG:
