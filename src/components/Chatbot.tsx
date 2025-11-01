@@ -92,7 +92,9 @@ export default function Chatbot() {
   const [isResizing, setIsResizing] = useState(false);
   const [selectedModel, setSelectedModel] = useState<ModelConfig>(getDefaultModel());
   const [showModelDropdown, setShowModelDropdown] = useState(false);
-  const [availableModels] = useState<ModelConfig[]>(getAvailableModels());
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>(getAvailableModels());
+  const [rateLimitInfo, setRateLimitInfo] = useState<any>(null);
+  const [loadingModels, setLoadingModels] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatWindowRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
@@ -104,6 +106,32 @@ export default function Chatbot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    async function fetchAvailableModels() {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+        const response = await fetch(`${backendUrl}/api/models/available`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.models && data.models.length > 0) {
+            setAvailableModels(data.models);
+            setSelectedModel(data.models[0]);
+            setRateLimitInfo(data);
+            addLog(`Loaded ${data.models.length} available models`, undefined, undefined, undefined);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch models:', error);
+        addLog('Using default model list (backend unavailable)', undefined, undefined, undefined);
+      } finally {
+        setLoadingModels(false);
+      }
+    }
+
+    fetchAvailableModels();
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -293,7 +321,11 @@ export default function Chatbot() {
       const result = await callLLM(prompt, selectedModel);
 
       if (result.error) {
-        addLog(`LLM Error: ${result.error}`, undefined, undefined, undefined);
+        if (result.error.includes('429') || result.error.includes('rate limit')) {
+          addLog(`⏱️ Rate Limit: ${result.error}`, 'block', 'Rate limited - retrying automatically', undefined);
+        } else {
+          addLog(`LLM Error: ${result.error}`, undefined, undefined, undefined);
+        }
       }
 
       return result;
@@ -562,30 +594,56 @@ export default function Chatbot() {
             </button>
 
             {showModelDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[200px] max-h-[300px] overflow-y-auto">
-                {availableModels.length === 0 ? (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded shadow-lg z-20 min-w-[250px] max-h-[400px] overflow-y-auto">
+                {loadingModels ? (
+                  <div className="px-3 py-2 text-xs text-gray-500">
+                    Loading models...
+                  </div>
+                ) : availableModels.length === 0 ? (
                   <div className="px-3 py-2 text-xs text-gray-500">
                     No models configured. Check your .env file.
                   </div>
                 ) : (
-                  availableModels.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => {
-                        setSelectedModel(model);
-                        setShowModelDropdown(false);
-                        addLog(`Switched to ${model.name}`, undefined, undefined, undefined);
-                      }}
-                      className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 transition-colors ${
-                        selectedModel.id === model.id ? 'bg-cyan-50 font-medium' : ''
-                      }`}
-                    >
-                      <div className="font-medium">{model.name}</div>
-                      {model.description && (
-                        <div className="text-gray-500 text-[10px] mt-0.5">{model.description}</div>
+                  <>
+                    <div className="px-3 py-2 bg-gray-50 border-b border-gray-200">
+                      <div className="text-[10px] font-semibold text-gray-700">Available Models</div>
+                      {rateLimitInfo?.rateLimitConfig && (
+                        <div className="text-[9px] text-gray-500 mt-0.5">
+                          Retry: {rateLimitInfo.rateLimitConfig.maxRetries}x,
+                          Delay: {rateLimitInfo.rateLimitConfig.initialDelay}ms
+                        </div>
                       )}
-                    </button>
-                  ))
+                    </div>
+                    {availableModels.map((model) => {
+                      const isRateLimited = rateLimitInfo?.currentRateLimits?.[model.provider]?.isLimited;
+                      const retryAfter = rateLimitInfo?.currentRateLimits?.[model.provider]?.retryAfter;
+
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => {
+                            setSelectedModel(model);
+                            setShowModelDropdown(false);
+                            addLog(`Switched to ${model.name}`, undefined, undefined, undefined);
+                          }}
+                          disabled={isRateLimited}
+                          className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            selectedModel.id === model.id ? 'bg-cyan-50 font-medium' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-medium">{model.name}</div>
+                            {isRateLimited && (
+                              <span className="text-red-500 text-[9px]">⏱️ {Math.ceil(retryAfter / 1000)}s</span>
+                            )}
+                          </div>
+                          {model.description && (
+                            <div className="text-gray-500 text-[10px] mt-0.5">{model.description}</div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </>
                 )}
               </div>
             )}
