@@ -300,7 +300,7 @@ app.post('/api/airs/scan', async (req, res) => {
 
 app.post('/api/llm/chat', async (req, res) => {
   try {
-    const { prompt, provider, model } = req.body;
+    const { prompt, provider, model, scanResponse = false } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -324,6 +324,34 @@ app.post('/api/llm/chat', async (req, res) => {
         break;
       default:
         return res.status(400).json({ error: 'Invalid provider' });
+    }
+
+    if (scanResponse && response) {
+      console.log('Scanning LLM response with AIRS...');
+      const scanResult = await scanWithAIRS(response);
+
+      if (scanResult.verdict === 'block') {
+        console.warn('⚠️ LLM response blocked by AIRS:', scanResult.reason);
+        return res.json({
+          response: '[Response blocked by AIRS security]',
+          blocked: true,
+          scanResult
+        });
+      }
+
+      if (scanResult.verdict === 'sanitize' && scanResult.sanitized_prompt) {
+        console.log('🔧 LLM response sanitized by AIRS');
+        return res.json({
+          response: scanResult.sanitized_prompt,
+          sanitized: true,
+          scanResult
+        });
+      }
+
+      return res.json({
+        response,
+        scanResult
+      });
     }
 
     res.json({ response });

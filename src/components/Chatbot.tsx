@@ -393,20 +393,39 @@ export default function Chatbot() {
 
     const llmResult = await sendToLLM(finalPrompt);
 
+    let finalResponse = llmResult.response;
+    let responseVerdict = verdict;
+    let responseReason = reason;
+
+    if (airsEnabled && llmResult.response) {
+      const responseScanResult = await scanPrompt(llmResult.response);
+      responseVerdict = responseScanResult.verdict;
+      responseReason = responseScanResult.reason || '';
+
+      addLog('AIRS scan on LLM response', responseVerdict, responseReason, responseScanResult.sanitized_prompt);
+
+      if (responseVerdict === 'block') {
+        finalResponse = `[LLM Response Blocked by AIRS]\n\nThe AI's response was blocked for security reasons: ${responseReason}\n\nPlease try rephrasing your question.`;
+      } else if (responseVerdict === 'sanitize' && responseScanResult.sanitized_prompt) {
+        finalResponse = responseScanResult.sanitized_prompt;
+        addLog('LLM response sanitized', 'sanitize', 'Response modified for safety', undefined);
+      }
+    }
+
     const cost = llmResult.tokenUsage ? calculateCost(llmResult.tokenUsage, selectedModel.model) : 0;
 
     const assistantMessage: Message = {
       id: (Date.now() + 2).toString(),
       role: 'assistant',
-      content: airsEnabled ? `[AIRS: ${verdict}]\n\n${llmResult.response}` : llmResult.response,
-      verdict: verdict as any,
+      content: airsEnabled ? `[AIRS: Prompt ${verdict} / Response ${responseVerdict}]\n\n${finalResponse}` : finalResponse,
+      verdict: responseVerdict as any,
       tokenUsage: llmResult.tokenUsage,
       cost,
-      reason
+      reason: responseReason
     };
 
     setMessages(prev => [...prev, assistantMessage]);
-    addLog('LLM response generated', verdict, reason);
+    addLog('LLM response delivered', responseVerdict, responseReason);
     setIsLoading(false);
   };
 
