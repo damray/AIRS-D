@@ -397,8 +397,18 @@ VITE_BACKEND_URL=https://your-backend-production-url.com
 
 See Docker section above and `BACKEND_SETUP.md` for details.
 
+## 🔒 Security
+
+**CRITICAL:** All `VITE_*` environment variables are embedded in the JavaScript bundle and visible in the browser. **NEVER** put API keys in `VITE_*` variables!
+
+✅ **Correct:** All API keys in `server/.env` (backend only)
+❌ **Wrong:** API keys in `.env` with `VITE_` prefix
+
+See `SECURITY.md` for complete security guidelines.
+
 ## 📖 Additional Documentation
 
+- **Security Guide**: `SECURITY.md` - Critical security information
 - **Backend Setup**: `BACKEND_SETUP.md` - Detailed backend configuration
 - **LLM Integration**: `REAL_LLM_INTEGRATION_GUIDE.md` - LLM provider details
 - **Test Cases**: `TEST_CASES.md` - Comprehensive testing guide

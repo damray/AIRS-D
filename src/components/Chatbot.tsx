@@ -183,32 +183,6 @@ export default function Chatbot() {
 
   const scanPrompt = async (prompt: string) => {
     try {
-      const airsApiUrl = import.meta.env.VITE_AIRS_API_URL;
-      const airsApiToken = import.meta.env.VITE_AIRS_API_TOKEN;
-      const airsProfileName = import.meta.env.VITE_AIRS_PROFILE_NAME;
-
-      if (!airsApiUrl || !airsApiToken || !airsProfileName) {
-        console.warn('AIRS API not configured, using mock response');
-        return simulateMockScan(prompt);
-      }
-
-      const requestBody = {
-        tr_id: `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        ai_profile: {
-          profile_name: airsProfileName
-        },
-        metadata: {
-          app_user: 'shop-assist-user',
-          app_name: 'Shop Assist Chatbot',
-          ai_model: 'Azure Foundry LLM'
-        },
-        contents: [
-          {
-            prompt: prompt
-          }
-        ]
-      };
-
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
       const response = await fetch(`${backendUrl}/api/airs/scan`, {
         method: 'POST',
