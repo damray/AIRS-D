@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import pool from './db.js';
 import { registerUser, loginUser, authMiddleware } from './auth.js';
+import { callWithRetry, getRateLimitConfig, getAllRateLimits, clearRateLimits } from './rateLimiter.js';
+import { checkAvailableModels, getModelCapabilities, isProviderConfigured } from './modelChecker.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +38,8 @@ async function callVertexAI(prompt, model = 'gemini-pro') {
 
   const endpoint = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
 
-  const response = await fetch(endpoint, {
+  return callWithRetry(async () => {
+    const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -54,12 +57,17 @@ async function callVertexAI(prompt, model = 'gemini-pro') {
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Vertex AI error: ${response.status} ${await response.text()}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(`Vertex AI error: ${response.status} ${errorText}`);
+      error.status = response.status;
+      error.retryAfter = response.headers.get('retry-after');
+      throw error;
+    }
 
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+  }, 'vertex');
 }
 
 async function callAnthropic(prompt, model = 'claude-3-sonnet-20240229') {
@@ -69,7 +77,8 @@ async function callAnthropic(prompt, model = 'claude-3-sonnet-20240229') {
     throw new Error('Anthropic API key not configured');
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  return callWithRetry(async () => {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
@@ -87,12 +96,17 @@ async function callAnthropic(prompt, model = 'claude-3-sonnet-20240229') {
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Anthropic error: ${response.status} ${await response.text()}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(`Anthropic error: ${response.status} ${errorText}`);
+      error.status = response.status;
+      error.retryAfter = response.headers.get('retry-after');
+      throw error;
+    }
 
-  const data = await response.json();
-  return data.content?.[0]?.text || 'No response generated';
+    const data = await response.json();
+    return data.content?.[0]?.text || 'No response generated';
+  }, 'anthropic');
 }
 
 async function callAzureOpenAI(prompt) {
@@ -106,7 +120,8 @@ async function callAzureOpenAI(prompt) {
 
   const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=2024-02-15-preview`;
 
-  const response = await fetch(url, {
+  return callWithRetry(async () => {
+    const response = await fetch(url, {
     method: 'POST',
     headers: {
       'api-key': apiKey,
@@ -122,18 +137,24 @@ async function callAzureOpenAI(prompt) {
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Azure OpenAI error: ${response.status} ${await response.text()}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(`Azure OpenAI error: ${response.status} ${errorText}`);
+      error.status = response.status;
+      error.retryAfter = response.headers.get('retry-after');
+      throw error;
+    }
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || 'No response generated';
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'No response generated';
+  }, 'azure');
 }
 
 async function callOllama(prompt, model = 'llama2') {
   const apiUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/chat';
 
-  const response = await fetch(apiUrl, {
+  return callWithRetry(async () => {
+    const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -148,12 +169,16 @@ async function callOllama(prompt, model = 'llama2') {
     })
   });
 
-  if (!response.ok) {
-    throw new Error(`Ollama error: ${response.status} ${await response.text()}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      const error = new Error(`Ollama error: ${response.status} ${errorText}`);
+      error.status = response.status;
+      throw error;
+    }
 
-  const data = await response.json();
-  return data.message?.content || 'No response generated';
+    const data = await response.json();
+    return data.message?.content || 'No response generated';
+  }, 'ollama');
 }
 
 async function scanWithAIRS(prompt) {
@@ -313,6 +338,46 @@ app.post('/api/llm/chat', async (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/models/available', (req, res) => {
+  try {
+    const models = checkAvailableModels();
+    const capabilities = getModelCapabilities();
+    const rateLimitConfig = getRateLimitConfig();
+    const currentRateLimits = getAllRateLimits();
+
+    res.json({
+      models,
+      capabilities,
+      rateLimitConfig,
+      currentRateLimits
+    });
+  } catch (error) {
+    console.error('Models check error:', error);
+    res.status(500).json({ error: 'Failed to check available models' });
+  }
+});
+
+app.post('/api/rate-limits/clear', (req, res) => {
+  try {
+    clearRateLimits();
+    res.json({ message: 'All rate limits cleared successfully' });
+  } catch (error) {
+    console.error('Clear rate limits error:', error);
+    res.status(500).json({ error: 'Failed to clear rate limits' });
+  }
+});
+
+app.get('/api/rate-limits', (req, res) => {
+  try {
+    const rateLimits = getAllRateLimits();
+    const config = getRateLimitConfig();
+    res.json({ rateLimits, config });
+  } catch (error) {
+    console.error('Get rate limits error:', error);
+    res.status(500).json({ error: 'Failed to get rate limits' });
+  }
 });
 
 app.post('/api/auth/register', async (req, res) => {
