@@ -1,15 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import HomePage from './pages/Home';
 import CatalogPage from './pages/Catalog';
 import ProductPage from './pages/ProductDetail';
 import CartPage from './pages/Cart';
 import Chatbot from './components/Chatbot';
 import Footer from './components/Footer';
+import AuthModal from './components/AuthModal';
+import { isAuthenticated, logout } from './services/api';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [cartItems, setCartItems] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(isAuthenticated());
+  }, []);
 
   const handleAddToCart = (product, size, quantity = 1) => {
     const item = { ...product, size, quantity };
@@ -27,6 +35,18 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    logout();
+    setIsLoggedIn(false);
+    setCartItems([]);
+    handleNavigate('home');
+  };
+
+  const handleAuthSuccess = () => {
+    setIsLoggedIn(true);
+    setShowAuthModal(false);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
@@ -39,7 +59,7 @@ export default function App() {
             >
               MINIMAL
             </button>
-            <nav className="hidden md:flex gap-8">
+            <nav className="hidden md:flex gap-8 items-center">
               <button
                 onClick={() => handleNavigate('catalog')}
                 className="text-sm text-gray-700 hover:text-cyan-400 transition-colors"
@@ -52,6 +72,21 @@ export default function App() {
               >
                 Cart {cartItems.length > 0 && <span className="bg-cyan-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{cartItems.length}</span>}
               </button>
+              {isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-gray-700 hover:text-cyan-400 transition-colors"
+                >
+                  Logout
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="text-sm text-gray-700 hover:text-cyan-400 transition-colors"
+                >
+                  Login
+                </button>
+              )}
             </nav>
             <button
               onClick={() => handleNavigate('cart')}
@@ -88,6 +123,14 @@ export default function App() {
 
       {/* Chatbot */}
       <Chatbot />
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </div>
   );
 }
