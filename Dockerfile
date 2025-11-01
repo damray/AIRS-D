@@ -9,14 +9,13 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# Copy environment file if exists
+COPY .env.frontend* ./
+
 # Copy source code
 COPY . .
 
-# Build arguments for environment variables
-ARG VITE_BACKEND_URL
-ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
-
-# Build the application
+# Build the application (will read from .env.frontend if exists)
 RUN npm run build
 
 # Production stage

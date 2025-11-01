@@ -4,10 +4,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: shop-assist-postgres
-    environment:
-      POSTGRES_DB: shop_assist
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    env_file:
+      - .env.database
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./server/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -29,22 +27,8 @@ services:
     container_name: shop-assist-backend
     ports:
       - "3001:3001"
-    environment:
-      BACKEND_PORT: 3001
-      FRONTEND_URL: http://localhost:80
-      DATABASE_URL: postgresql://admin:${DB_PASSWORD}@postgres:5432/shop_assist
-      JWT_SECRET: ${JWT_SECRET}
-      AIRS_API_URL: ${AIRS_API_URL:-https://service.api.aisecurity.paloaltonetworks.com}
-      AIRS_API_TOKEN: ${AIRS_API_TOKEN}
-      AIRS_PROFILE_NAME: ${AIRS_PROFILE_NAME}
-      VERTEX_PROJECT_ID: ${VERTEX_PROJECT_ID}
-      VERTEX_LOCATION: ${VERTEX_LOCATION:-us-central1}
-      VERTEX_API_KEY: ${VERTEX_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      OLLAMA_API_URL: ${OLLAMA_API_URL:-http://ollama:11434/api/chat}
-      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
-      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
-      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+    env_file:
+      - .env.backend
     networks:
       - shop-network
     restart: unless-stopped
@@ -62,8 +46,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        VITE_BACKEND_URL: http://localhost:3001
     container_name: shop-assist-frontend
     ports:
       - "80:80"
