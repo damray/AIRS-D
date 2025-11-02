@@ -44,7 +44,7 @@ export const MODELS: ModelConfig[] = [
     id: 'ollama-mistral',
     name: 'Mistral (Ollama)',
     provider: 'ollama',
-    model: 'mistral:7b-instruct',
+    model: 'mistral',
     enabled: true,
     description: 'Mistral via Ollama',
   },

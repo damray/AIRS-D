@@ -54,9 +54,6 @@ services:
     networks:
       - shop-network
     restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_healthy
 
   # Reverse proxy: single public entrypoint on 80/443
   edge:
@@ -64,8 +61,6 @@ services:
     container_name: shop-assist-edge
     depends_on:
       backend:
-        condition: service_healthy
-      frontend:
         condition: service_healthy
     ports:
       - "80:80"

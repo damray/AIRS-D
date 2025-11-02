@@ -79,7 +79,7 @@ export function checkAvailableModels() {
       id: 'ollama-mistral',
       name: 'Mistral (Ollama)',
       provider: 'ollama',
-      model: 'mistral:7b-instruct',
+      model: process.env.OLLAMA_MODEL || 'mistral', // ⬅️ use env or fallback
       enabled: true,
       description: 'Mistral via Ollama (requires Ollama running)',
       configured: true

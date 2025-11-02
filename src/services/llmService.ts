@@ -8,7 +8,7 @@ interface LLMResponse {
   tokenUsage?: TokenUsage;
 }
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
 export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMResponse> => {
   if (model.provider === 'custom' && model.model === 'mock') {
@@ -16,7 +16,7 @@ export const callLLM = async (prompt: string, model: ModelConfig): Promise<LLMRe
   }
 
   try {
-    const response = await fetch(`${BACKEND_URL}/api/llm/chat`, {
+    const response = await fetch(`${BACKEND_URL}/llm/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
