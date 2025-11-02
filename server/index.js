@@ -25,7 +25,9 @@ app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.BACKEND_PORT || 3001;
 
-const systemPrompt = fs.readFileSync(path.join(__dirname, '..', 'SYSTEM_PROMPT.txt'), 'utf-8');
+//const systemPrompt = fs.readFileSync(path.join(__dirname, '..', 'SYSTEM_PROMPT.txt'), 'utf-8');
+const systemPromptPath = path.resolve(__dirname, 'SYSTEM_PROMPT.txt');
+const systemPrompt = fs.readFileSync(systemPromptPath, 'utf-8');
 
 async function callVertexAI(prompt, model = 'gemini-pro') {
   const projectId = process.env.VERTEX_PROJECT_ID;
