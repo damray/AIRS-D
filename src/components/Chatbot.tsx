@@ -81,7 +81,7 @@ export default function Chatbot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [airsEnabled, setAirsEnabled] = useState(true);
+  const [airsEnabled, setAirsEnabled] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLogs, setShowLogs] = useState(false);
   const [attackScenarios, setAttackScenarios] = useState<AttackScenario[]>(DEFAULT_ATTACK_SCENARIOS);
@@ -110,8 +110,8 @@ export default function Chatbot() {
   useEffect(() => {
     async function fetchAvailableModels() {
       try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-        const response = await fetch(`${backendUrl}/api/models/available`);
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
+        const response = await fetch(`${backendUrl}/models/available`);
 
         if (response.ok) {
           const data = await response.json();
@@ -211,8 +211,8 @@ export default function Chatbot() {
 
   const scanPrompt = async (prompt: string) => {
     try {
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
-      const response = await fetch(`${backendUrl}/api/airs/scan`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
+      const response = await fetch(`${backendUrl}/airs/scan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

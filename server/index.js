@@ -12,14 +12,19 @@ import { checkAvailableModels, getModelCapabilities, isProviderConfigured } from
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '..', '.env') });
+dotenv.config();
 
 const app = express();
 
+const ALLOWED = [process.env.FRONTEND_URL, 'http://localhost', 'http://localhost:80', 'http://127.0.0.1', 'http://localhost:5173'].filter(Boolean);
+app.use(cors({origin: (o,cb)=>!o||ALLOWED.some(a=>o.startsWith(a))?cb(null,true):cb(new Error('CORS'),false), credentials:true }));
+
+/*
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
-}));
+})); 
+*/
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -152,8 +157,8 @@ async function callAzureOpenAI(prompt) {
   }, 'azure');
 }
 
-async function callOllama(prompt, model = 'llama2') {
-  const apiUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434/api/chat';
+async function callOllama(prompt, model = process.env.OLLAMA_MODEL || 'mistral') {
+  const apiUrl = process.env.OLLAMA_API_URL || 'http://ollama:11434/api/chat';
 
   return callWithRetry(async () => {
     const response = await fetch(apiUrl, {
@@ -318,6 +323,7 @@ app.post('/api/llm/chat', async (req, res) => {
         response = await callAnthropic(prompt, model);
         break;
       case 'openai':
+        return res.status(400).json({ error: 'OpenAI provider not implemented, use azure/ollama/anthropic/vertex' });
       case 'azure':
         response = await callAzureOpenAI(prompt);
         break;

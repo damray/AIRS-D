@@ -62,7 +62,7 @@ function getAuthHeaders() {
 }
 
 export async function registerUser(email: string, password: string) {
-  const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+  const response = await fetch(`${BACKEND_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -77,7 +77,7 @@ export async function registerUser(email: string, password: string) {
 }
 
 export async function loginUser(email: string, password: string): Promise<LoginResponse> {
-  const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+  const response = await fetch(`${BACKEND_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -98,7 +98,7 @@ export function logout() {
 }
 
 export async function fetchProducts(): Promise<Product[]> {
-  const response = await fetch(`${BACKEND_URL}/api/products`);
+  const response = await fetch(`${BACKEND_URL}/products`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch products');
@@ -108,7 +108,7 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 export async function fetchProduct(id: number): Promise<Product> {
-  const response = await fetch(`${BACKEND_URL}/api/products/${id}`);
+  const response = await fetch(`${BACKEND_URL}/products/${id}`);
 
   if (!response.ok) {
     throw new Error('Failed to fetch product');
@@ -118,7 +118,7 @@ export async function fetchProduct(id: number): Promise<Product> {
 }
 
 export async function fetchCart(): Promise<CartItem[]> {
-  const response = await fetch(`${BACKEND_URL}/api/cart`, {
+  const response = await fetch(`${BACKEND_URL}/cart`, {
     headers: getAuthHeaders(),
   });
 
@@ -130,7 +130,7 @@ export async function fetchCart(): Promise<CartItem[]> {
 }
 
 export async function addToCart(productId: number, quantity: number = 1) {
-  const response = await fetch(`${BACKEND_URL}/api/cart/add`, {
+  const response = await fetch(`${BACKEND_URL}/cart/add`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ productId, quantity }),
@@ -145,7 +145,7 @@ export async function addToCart(productId: number, quantity: number = 1) {
 }
 
 export async function updateCartItem(id: number, quantity: number) {
-  const response = await fetch(`${BACKEND_URL}/api/cart/${id}`, {
+  const response = await fetch(`${BACKEND_URL}/cart/${id}`, {
     method: 'PUT',
     headers: getAuthHeaders(),
     body: JSON.stringify({ quantity }),
@@ -159,7 +159,7 @@ export async function updateCartItem(id: number, quantity: number) {
 }
 
 export async function removeFromCart(id: number) {
-  const response = await fetch(`${BACKEND_URL}/api/cart/${id}`, {
+  const response = await fetch(`${BACKEND_URL}/cart/${id}`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
@@ -172,7 +172,7 @@ export async function removeFromCart(id: number) {
 }
 
 export async function clearCart() {
-  const response = await fetch(`${BACKEND_URL}/api/cart`, {
+  const response = await fetch(`${BACKEND_URL}/cart`, {
     method: 'DELETE',
     headers: getAuthHeaders(),
   });
