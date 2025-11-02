@@ -189,52 +189,121 @@ async function callOllama(prompt, model = process.env.OLLAMA_MODEL || 'mistral')
 }
 
 async function scanWithAIRS(prompt) {
-  const apiUrl = process.env.AIRS_API_URL;
-  const apiToken = process.env.AIRS_API_TOKEN;
-  const profileName = process.env.AIRS_PROFILE_NAME;
+  const airsUrl = (process.env.AIRS_API_URL || '').trim();
+  const apiToken = (process.env.AIRS_API_TOKEN || '').trim();
+  const profileName = (process.env.AIRS_PROFILE_NAME || '').trim();
 
-  if (!apiUrl || !apiToken || !profileName) {
+  // Si la conf n'est pas complète, on garde le mock de sécurité.
+  if (!airsUrl || !apiToken || !profileName) {
     return mockAIRSScan(prompt);
   }
 
-  const transactionId = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const transactionId = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // fetch avec retries + respect de Retry-After
+  async function fetchWithRetry(url, init, { attempts = 3 } = {}) {
+    let lastErr;
+    for (let i = 0; i < attempts; i++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000); // 15s
+      try {
+        const res = await fetch(url, { ...init, signal: controller.signal });
+        clearTimeout(timeout);
+        // Retry sur 429 et 5xx
+        if (res.status === 429 || (res.status >= 500 && res.status < 600)) {
+          const ra = res.headers.get("retry-after");
+          const delayMs = ra && !Number.isNaN(Number(ra)) ? Number(ra) * 1000 : (2 ** i) * 500;
+          if (i < attempts - 1) {
+            await sleep(delayMs);
+            continue;
+          }
+        }
+        return res;
+      } catch (e) {
+        clearTimeout(timeout);
+        lastErr = e;
+        // Réseau/timeout → retry
+        if (i < attempts - 1) {
+          await sleep((2 ** i) * 500);
+          continue;
+        }
+        throw e;
+      }
+    }
+    throw lastErr;
+  }
+
+  const basePayload = {
+    tr_id: transactionId,
+    ai_profile: { profile_name: profileName },
+    metadata: {
+      app_user: 'shop-assist-backend',
+      app_name: 'Shop Assist Chatbot',
+      ai_model: 'Multi-Provider LLM',
+    },
+    contents: [{ prompt }],
+  };
+
+  async function postJson(path, body) {
+    const fullUrl = `${airsUrl}${path}`;
+    if (!apiToken) {
+      console.error('[AIRS][FATAL] Empty AIRS token — check env');
+    }
+    // ✅ headers réels envoyés à AIRS
+    const headersReal = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'x-pan-token': apiToken,
+    };
+  
+    // 🪵 log sûr (token readable)
+    const bodySize = Buffer.byteLength(JSON.stringify(body), 'utf8');
+    console.log('[AIRS][DEBUG] Fetch call:', fullUrl);
+    console.log('[AIRS][DEBUG] Headers:', headersReal);
+    console.log('[AIRS][DEBUG] Profile:', body.ai_profile?.profile_name, '| Payload size:', bodySize, 'bytes');
+    console.log('[AIRS][DEBUG] Token length:', apiToken.length);
+    console.log('[AIRS][DEBUG] Token value:', apiToken); // ⚠️ seulement pour vérif temporaire
+
+    return fetchWithRetry(fullUrl, {
+      method: 'POST',
+      headers: headersReal,     // ⬅️ on envoie le VRAI token
+      body: JSON.stringify(body),
+    });
+  }
 
   try {
-    const response = await fetch(`${apiUrl}/v1/scan/sync/request`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'x-pan-token': apiToken
-      },
-      body: JSON.stringify({
-        tr_id: transactionId,
-        ai_profile: { profile_name: profileName },
-        metadata: {
-          app_user: 'shop-assist-backend',
-          app_name: 'Shop Assist Chatbot',
-          ai_model: 'Multi-Provider LLM'
-        },
-        contents: [{ prompt }]
-      })
-    });
+    // 1) Tentative en SYNC troubleshoot
+    console.log('[AIRS][DEBUG] Request URL:', `${airsUrl}/v1/scan/sync/request`);
+    let res = await postJson('/v1/scan/sync/request', basePayload);
 
-    if (!response.ok) {
-      console.error('AIRS API error:', response.status);
+    // 413 => payload trop grand pour /sync : bascule auto sur /async
+    if (res.status === 413) {
+      console.log('[AIRS][DEBUG] Payload too large, switching to async:', `${airsUrl}/v1/scan/async/request`);
+      res = await postJson('/v1/scan/async/request', basePayload);
+    }
+
+    if (!res.ok) {
+      console.error('AIRS API error:', res.status);
       return mockAIRSScan(prompt);
     }
 
-    const data = await response.json();
+    const data = await res.json();
 
+    // Normalisation de la sortie
+    const action = data.action || data.verdict || 'allow';
     return {
-      verdict: data.action === 'block' ? 'block' : 'allow',
-      reason: data.category || 'Unknown',
-      scanId: data.scan_id,
-      reportId: data.report_id,
-      details: data.prompt_detected
+      verdict: action === 'block' ? 'block' : 'allow',
+      reason: data.category || data.reason || 'Unknown',
+      scanId: data.scan_id || data.scanId,
+      reportId: data.report_id || data.reportId,
+      details: data.prompt_detected ?? data.details ?? null,
+      trId: transactionId,
+      mode: (res.url && res.url.includes('/async/')) ? 'async' : 'sync',
     };
   } catch (error) {
-    console.error('AIRS scan failed:', error);
+    console.error('AIRS scan failed:', error?.message || error);
     return mockAIRSScan(prompt);
   }
 }
