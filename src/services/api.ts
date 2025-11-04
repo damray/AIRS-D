@@ -1,4 +1,5 @@
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const RAW = import.meta.env.VITE_BACKEND_URL ?? '/api'; // passe par l'edge/proxy
+const BACKEND_URL = RAW.replace(/\/$/, '');             // retire le / final
 
 interface LoginResponse {
   token: string;
