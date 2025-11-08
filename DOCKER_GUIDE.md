@@ -2,32 +2,54 @@
 
 ## Architecture
 
-This application is fully containerized with 3 services:
+This application is fully containerized with 4 services:
 
-1. **PostgreSQL 16** - Database container
-2. **Node.js Express Backend** - API server (not downloadable by browser)
-3. **Nginx Frontend** - Serves static React build
+edge — Nginx (or OpenResty/Traefik)
+      Serves React build at /
+      Proxies /api/* to backend:3001
+      Optional TLS on 443
+
+backend — Node.js/Express (port 3001)
+         Implements /api/* (auth, products, cart, LLM, AIRS, health)
+         Holds secrets (DB creds, API tokens, AIRS token)
+
+postgres — PostgreSQL 16 (port 5432)
+         users, products, cart_items (+ seed data)
+
+(optional) ollama — local LLM endpoint (if enabled)
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Browser (Port 80)                              │
-│  ↓ Downloads: HTML, JS, CSS (Static files)     │
-└─────────────────────────────────────────────────┘
-                    │
-                    │ HTTP Requests
-                    ↓
-┌─────────────────────────────────────────────────┐
-│  Backend (Port 3001) - Node.js Express          │
-│  ↓ Has access to: API keys, JWT secrets        │
-│  ↓ Never sent to browser                       │
-└─────────────────────────────────────────────────┘
-                    │
-                    │ SQL Queries
-                    ↓
-┌─────────────────────────────────────────────────┐
-│  PostgreSQL (Port 5432)                         │
-│  ↓ Tables: users, products, cart_items          │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Browser (80/443)                                         │
+│   GET /                      → React static (via Edge)    │
+│   POST /api/llm/chat         → proxy → Backend:3001       │
+│   GET  /api/products         → proxy → Backend:3001       │
+└──────────────────────────────────────────────────────────┘
+                         │
+              (reverse proxy: /api → 3001)
+                         │
+┌──────────────────────────────────────────────────────────┐
+│ Edge (Nginx)                                              │
+│  - Serves: / (React build)                                │
+│  - Proxies: /api/* → http://backend:3001/api/*            │
+└──────────────────────────────────────────────────────────┘
+                         │
+                         │ REST / DB client
+                         ↓
+┌──────────────────────────────────────────────────────────┐
+│ Backend (Node/Express:3001)                               │
+│  - Routes: /api/auth, /api/products, /api/cart,           │
+│           /api/llm/chat, /api/airs/scan, /health          │
+│  - Secrets: JWT, DB, AIRS, providers                      │
+└──────────────────────────────────────────────────────────┘
+                         │
+                         │ SQL
+                         ↓
+┌──────────────────────────────────────────────────────────┐
+│ PostgreSQL (5432)                                         │
+│  - users, products, cart_items                            │
+└──────────────────────────────────────────────────────────┘
+
 ```
 
 ## Security Model
