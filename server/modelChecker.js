@@ -6,7 +6,7 @@ export function checkAvailableModels() {
       id: 'gemini-pro',
       name: 'Gemini Pro (Vertex AI)',
       provider: 'vertex',
-      model: 'gemini-pro',
+      model: process.env.VERTEX_GEMINI_PRO_MODEL || 'gemini-pro',
       enabled: true,
       description: 'Google Gemini Pro via Vertex AI',
       configured: true
@@ -15,7 +15,7 @@ export function checkAvailableModels() {
       id: 'gemini-1.5-pro',
       name: 'Gemini 1.5 Pro (Vertex AI)',
       provider: 'vertex',
-      model: 'gemini-1.5-pro',
+      model: process.env.VERTEX_GEMINI_1_5_PRO_MODEL || 'gemini-1.5-pro',
       enabled: true,
       description: 'Google Gemini 1.5 Pro via Vertex AI',
       configured: true
@@ -27,7 +27,7 @@ export function checkAvailableModels() {
       id: 'claude-3-opus',
       name: 'Claude 3 Opus (Anthropic)',
       provider: 'anthropic',
-      model: 'claude-3-opus-20240229',
+      model: process.env.ANTHROPIC_CLAUDE_3_OPUS_MODEL || 'claude-3-opus-20240229',
       enabled: true,
       description: 'Anthropic Claude 3 Opus model',
       configured: true
@@ -36,7 +36,7 @@ export function checkAvailableModels() {
       id: 'claude-3-sonnet',
       name: 'Claude 3 Sonnet (Anthropic)',
       provider: 'anthropic',
-      model: 'claude-3-sonnet-20240229',
+      model: process.env.ANTHROPIC_CLAUDE_3_SONNET_MODEL || 'claude-3-sonnet-20240229',
       enabled: true,
       description: 'Anthropic Claude 3 Sonnet model',
       configured: true
@@ -45,7 +45,7 @@ export function checkAvailableModels() {
       id: 'claude-3-haiku',
       name: 'Claude 3 Haiku (Anthropic)',
       provider: 'anthropic',
-      model: 'claude-3-haiku-20240307',
+      model: process.env.ANTHROPIC_CLAUDE_3_HAIKU_MODEL || 'claude-3-haiku-20240307',
       enabled: true,
       description: 'Anthropic Claude 3 Haiku model (fastest)',
       configured: true
