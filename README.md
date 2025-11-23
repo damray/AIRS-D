@@ -22,6 +22,8 @@ Docker network: shop-network (edge, frontend, backend, postgres, optional ollama
 Persistent volumes: postgres-data (db), ollama-data (models)
 ```
 
+# Screenshot chatbot of the website
+![alt text](image.png)
 # Chatbot Flow & Security
 - Model availability & reachability: `server/modelChecker.js` builds the list of models, pings providers (Vertex/Anthropic/Azure/Ollama/Bedrock) and only enables reachable ones. The frontend calls `/api/models/available` and shows the refreshed list.
 - Manual refresh: the chatbot header has a “Refresh” button to re-run `/api/models/available` when credentials change or a new model is deployed.

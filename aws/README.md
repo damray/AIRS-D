@@ -1,45 +1,84 @@
-# AIRS-D AWS Bootstrap (Terraform)
+# AIRS-D Deployment on AWS (Terraform, Single EC2)
 
-Déploie la stack Docker Compose sur une seule instance EC2.
+This guide is written for someone new to the project. It deploys the entire Docker Compose stack (edge Nginx, frontend, backend, Postgres, optional Ollama) on one small EC2 instance. Bedrock is used as a managed service (no extra infra to create), other SaaS LLMs are called directly by the backend.
 
-## Prérequis
-- AWS creds configurés (`aws configure` ou variables d’env)
-- Terraform >= 1.4
-- Une paire de clés EC2 existante si vous voulez SSH (`key_name`)
-- Secrets stockés dans SSM Parameter Store (SecureString) avec les noms par défaut :
-  - `/airs-d/db-password` (obligatoire)
-  - `/airs-d/jwt-secret` (obligatoire)
-  - `/airs-d/airs-api-token`, `/airs-d/airs-api-url`, `/airs-d/airs-profile` (optionnel)
-  - `/airs-d/vertex-api-key`, `/airs-d/anthropic-api-key`, `/airs-d/azure-openai-endpoint`, `/airs-d/azure-openai-api-key`, `/airs-d/ollama-api-url` (optionnel)
-  Vous pouvez changer les noms via `variables.tf`.
+## What Terraform Builds
+- One EC2 instance (default t4g/t3 nano) with a public IP.
+- Security Group: opens 80/443 to the world, 22 from your chosen CIDR.
+- IAM role + instance profile: read SSM parameters; invoke AWS Bedrock.
+- SSM parameters: DB/JWT and optional provider secrets are written from the values you provide at `terraform apply`.
+- User data on the instance: installs Docker + docker-compose, clones this repo into `/opt/airs-d`, pulls SSM values, writes `.env*`, then runs `docker-compose up -d`.
+- Optional Route53 A record if you supply `domain_name` and set `create_route53_record=true`.
 
-## Variables clés (voir `variables.tf`)
-- `aws_region` (défaut: eu-west-3)
-- `instance_type` (défaut: t4g.nano, utilisez t3.nano si vous restez en x86_64)
-- `ami_architecture` (arm64 pour t4g, x86_64 pour t3)
-- `github_repo_url` (défaut repo AIRS-D)
-- `enable_ollama` (false par défaut, passe COMPOSE_PROFILES=with-ollama)
-- `create_route53_record` + `domain_name` + `edge_subdomain` pour le DNS
-- `ssh_allowed_cidr` et `key_name` pour l’accès SSH
-- `vpc_id` et `subnet_id` : obligatoires si vous n’avez pas de VPC par défaut (le subnet doit appartenir au VPC)
-- Paramètres SSM : noms configurables, valeurs lues au boot par l’EC2 (rôle IAM auto-créé avec accès en lecture). Les secrets ne passent pas dans le state Terraform.
+## Prerequisites
+- AWS credentials configured (`aws configure` or env vars).
+- Terraform >= 1.4 installed.
+- Networking: either a default VPC exists, or you provide `vpc_id` and `subnet_id` (subnet must belong to the VPC).
+- (Optional) Route53 hosted zone if you want DNS.
 
-## Usage
+## Variables You Will Be Asked For (no defaults)
+- `ssm_db_password_value`: Postgres password (SecureString).
+- `ssm_jwt_secret_value`: JWT secret (SecureString).
+- Optional provider values (if you want real calls instead of mocks):
+  - `ssm_airs_api_token_value`, `ssm_airs_api_url_value`, `ssm_airs_profile_value`
+  - `ssm_vertex_api_key_value`
+  - `ssm_anthropic_api_key_value`
+  - `ssm_azure_openai_endpoint_value`, `ssm_azure_openai_api_key_value`
+  - `ssm_ollama_api_url_value`
+If you leave optional values blank, the backend will fall back to mocks where applicable.
+
+## Other Key Variables (defaults set in `variables.tf`)
+- `aws_region` (default: eu-west-3).
+- `instance_type`, `ami_architecture` (t4g/t3 nano).
+- `key_name` (existing key) or `generate_key_pair` (auto-generate, outputs PEM).
+- `ssh_allowed_cidr` (who can SSH).
+- `enable_ollama` (enable compose profile `with-ollama`).
+- `create_route53_record`, `domain_name`, `edge_subdomain` (DNS).
+- `vpc_id`, `subnet_id` (required if no default VPC).
+
+## Deploy Steps (one by one)
 ```bash
 cd aws
 terraform init
+# Plan: you will be prompted for the SSM values above
 terraform plan -out tfplan
+# Apply: enter "yes" when satisfied
 terraform apply tfplan
 ```
 
-## Connexion SSH
-terraform output -raw generated_private_key_pem > airs-d-generated.pem    
-chmod 600 airs-d-generated.pem            
+## Terraform Outputs (what they mean)
+- `ec2_public_ip`: public IP of the instance. Use http://<ip> to reach the app.
+- `ec2_public_dns`: public DNS of the instance.
+- `site_url_ip`: handy URL using the IP.
+- `site_url_domain`: set only if you created a Route53 record (http://<edge_subdomain>.<domain_name>).
+- `generated_private_key_pem`: present only if `generate_key_pair=true` and no `key_name` provided. **Keep it safe.**
+
+## Connect to the App
+- Without DNS: open `http://<ec2_public_ip>` in your browser (edge proxies frontend and backend).
+- With DNS: open `http://<edge_subdomain>.<domain_name>` if you enabled Route53.
+- Health check: `curl http://<ec2_public_ip>/api/health` (proxied via edge) or `curl http://<ec2_public_ip>:80/health`.
+
+## SSH Access
+If you generated a key:
 ```bash
+terraform output -raw generated_private_key_pem > airs-d-generated.pem
+chmod 600 airs-d-generated.pem
 ssh -i airs-d-generated.pem ec2-user@$(terraform output -raw ec2_public_ip)
 ```
+If you used an existing key pair, use that instead.
+
+## After First Boot
+- Docker should be running the stack automatically (`docker-compose up -d` in `/opt/airs-d`).
+- Verify on the instance:
+  ```bash
+  ssh -i ... ec2-user@<ip>
+  cd /opt/airs-d
+  docker ps
+  docker-compose logs backend
+  ```
+- If optional provider SSM values were left empty, backend will use mock responses where designed.
 
 ## Notes
-- Le script `user_data.sh` installe Docker + docker-compose, clone le repo dans `/opt/airs-d`, puis lance `docker-compose up -d`.
-- La première montée peut prendre quelques minutes (images, éventuellement Ollama).
-- Le SG ouvre 80/443 à tous et 22 selon `ssh_allowed_cidr`. Restreignez en prod.
+- First start may take a few minutes (image pulls, optional Ollama).
+- Keep ports 80/443 open for access; restrict 22 via `ssh_allowed_cidr`.
+- Bedrock: no extra infra created; IAM on the instance allows InvokeModel in the selected region.
