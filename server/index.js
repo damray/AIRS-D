@@ -438,9 +438,9 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/models/available', (req, res) => {
+app.get('/api/models/available', async (req, res) => {
   try {
-    const models = checkAvailableModels();
+    const models = await checkAvailableModels();
     const capabilities = getModelCapabilities();
     const rateLimitConfig = getRateLimitConfig();
     const currentRateLimits = getAllRateLimits();
