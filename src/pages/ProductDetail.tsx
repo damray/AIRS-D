@@ -1,9 +1,27 @@
 import { useState } from 'react';
 import { ShoppingBag, ChevronLeft } from 'lucide-react';
 
-export default function ProductPage({ product, onAddToCart, onNavigate }) {
-  const [selectedSize, setSelectedSize] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+type SizeOption = string | number;
+
+interface Product {
+  id?: number;
+  name: string;
+  price: number;
+  image?: string;
+  desc?: string;
+  fullDesc?: string;
+  sizes?: SizeOption[];
+}
+
+interface ProductPageProps {
+  product: Product;
+  onAddToCart: (product: Product, size: SizeOption, quantity: number) => void;
+  onNavigate: (route: string) => void;
+}
+
+export default function ProductPage({ product, onAddToCart, onNavigate }: ProductPageProps) {
+  const [selectedSize, setSelectedSize] = useState<SizeOption | null>(null);
+  const [quantity, setQuantity] = useState<number>(1);
   const [addedToCart, setAddedToCart] = useState(false);
 
   const handleAddToCart = () => {

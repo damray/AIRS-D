@@ -34,6 +34,18 @@ interface AttackScenario {
   description: string;
 }
 
+type ScanVerdict = 'allow' | 'block' | 'sanitize';
+
+interface ScanResult {
+  verdict: ScanVerdict;
+  reason: string;
+  category?: string;
+  sanitized_prompt?: string;
+  scan_id?: any;
+  report_id?: any;
+  prompt_detected?: any;
+}
+
 const DEFAULT_ATTACK_SCENARIOS: AttackScenario[] = [
   {
     id: 'system-override',
@@ -209,7 +221,7 @@ export default function Chatbot() {
     ]);
   };
 
-  const scanPrompt = async (prompt: string) => {
+  const scanPrompt = async (prompt: string): Promise<ScanResult> => {
     try {
       const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
       const response = await fetch(`${backendUrl}/airs/scan`, {
@@ -226,7 +238,7 @@ export default function Chatbot() {
 
       const data = await response.json();
 
-      const verdict = data.action === 'block' ? 'block' : 'allow';
+      const verdict: ScanVerdict = data.action === 'block' ? 'block' : data.action === 'sanitize' ? 'sanitize' : 'allow';
       let reason = '';
 
       if (data.prompt_detected) {
@@ -243,7 +255,8 @@ export default function Chatbot() {
         scan_id: data.scan_id,
         report_id: data.report_id,
         category: data.category,
-        prompt_detected: data.prompt_detected
+        prompt_detected: data.prompt_detected,
+        sanitized_prompt: data.sanitized_prompt
       };
     } catch (error) {
       console.error('AIRS scan error:', error);
@@ -251,7 +264,7 @@ export default function Chatbot() {
     }
   };
 
-  const simulateMockScan = (prompt: string) => {
+  const simulateMockScan = (prompt: string): ScanResult => {
     const lowerPrompt = prompt.toLowerCase();
 
     const injectionPatterns = [
@@ -274,7 +287,8 @@ export default function Chatbot() {
         return {
           verdict: 'block',
           reason: 'Prompt injection attempt detected',
-          category: 'malicious'
+          category: 'malicious',
+          sanitized_prompt: undefined
         };
       }
     }
@@ -284,7 +298,8 @@ export default function Chatbot() {
         return {
           verdict: 'block',
           reason: 'Secret exfiltration attempt detected',
-          category: 'malicious'
+          category: 'malicious',
+          sanitized_prompt: undefined
         };
       }
     }
@@ -294,7 +309,8 @@ export default function Chatbot() {
         return {
           verdict: 'block',
           reason: 'Malicious content detected',
-          category: 'malicious'
+          category: 'malicious',
+          sanitized_prompt: undefined
         };
       }
     }
@@ -311,7 +327,8 @@ export default function Chatbot() {
     return {
       verdict: 'allow',
       reason: 'No threats detected',
-      category: 'benign'
+      category: 'benign',
+      sanitized_prompt: undefined
     };
   };
 

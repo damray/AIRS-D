@@ -12,8 +12,9 @@ RUN npm ci
 # Copy environment file if exists
 COPY .env.frontend* ./
 
-# Copy source code
-COPY . .
+# Copy only what the frontend build needs
+COPY tsconfig*.json vite.config.ts tailwind.config.js postcss.config.js index.html ./
+COPY src ./src
 
 # Build the application (will read from .env.frontend if exists)
 RUN npm run build

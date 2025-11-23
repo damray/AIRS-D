@@ -28,6 +28,7 @@ services:
     expose:
       - "3001"
     env_file:
+      - .env
       - .env.backend
     networks:
       - shop-network
@@ -78,8 +79,6 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: shop-assist-ollama
-    env_file:
-      - .env.ollama            # should contain OLLAMA_DEFAULT_MODEL=mistral
     ports:
       - "11434:11434"
     volumes:
@@ -102,7 +101,7 @@ services:
       ollama:
         condition: service_started
     environment:
-      MODEL: "mistral"     # change here if you want another default
+      MODEL: ${OLLAMA_MODEL:-mistral}     # follows .env, defaults to mistral
     networks:
       - shop-network
     restart: "no"
