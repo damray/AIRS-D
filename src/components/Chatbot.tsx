@@ -197,8 +197,8 @@ export default function Chatbot() {
   const addLog = (action: string, verdict?: string, reason?: string, sanitized?: string) => {
     const now = new Date();
     const timestamp = now.toLocaleTimeString();
-    setLogs([
-      ...logs,
+    setLogs(prev => [
+      ...prev,
       {
         timestamp,
         action,
@@ -490,7 +490,7 @@ export default function Chatbot() {
           const allowMessage: Message = {
             id: `attack-${Date.now()}-${i}-allow`,
             role: 'assistant',
-            content: `✅ ALLOWED by AIRS\n\n${response}\n\nExpected: ${scenario.expected}${scanResult.verdict === scenario.expected ? ' ✓ PASS' : ' ✗ FAIL'}`,
+            content: `✅ ALLOWED by AIRS\n\n${response.response}\n\nExpected: ${scenario.expected}${scanResult.verdict === scenario.expected ? ' ✓ PASS' : ' ✗ FAIL'}`,
             verdict: 'allow'
           };
           setMessages(prev => [...prev, allowMessage]);
@@ -500,7 +500,7 @@ export default function Chatbot() {
         const noProtectionMessage: Message = {
           id: `attack-${Date.now()}-${i}-noprotection`,
           role: 'assistant',
-          content: `⚠️ AIRS DISABLED\n\n${response}\n\nThis message was sent without protection.`
+          content: `⚠️ AIRS DISABLED\n\n${response.response}\n\nThis message was sent without protection.`
         };
         setMessages(prev => [...prev, noProtectionMessage]);
         addLog(`Turn ${i + 1}: No protection`, 'OFF', 'AIRS disabled');

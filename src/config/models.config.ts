@@ -5,6 +5,9 @@ export interface ModelConfig {
   model: string;
   enabled: boolean;
   description?: string;
+  apiKey?: string;
+  apiUrl?: string;
+  headers?: Record<string, string>;
 }
 
 export const MODELS: ModelConfig[] = [

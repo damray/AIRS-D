@@ -7,8 +7,8 @@ A secure AI-powered shopping assistant demonstrating **real-time prompt injectio
 This project showcases a production-ready e-commerce chatbot with enterprise-grade security:
 
 - **Secure Architecture**: Backend Node.js server protects API keys from browser exposure
-- **Multi-LLM Support**: Google Vertex AI, Anthropic Claude, Azure OpenAI, Ollama
-- **AIRS Protection**: Real-time security scanning for prompt injection attacks
+- **Multi-LLM Support**: Google Vertex AI, Anthropic Claude, Azure OpenAI, Ollama local
+- **AIRS RunTime Protection**: Real-time security scanning for prompt injection attacks
 - **Attack Demo Lab**: Interactive testing interface with customizable attack scenarios
 - **Live Security Logs**: Real-time monitoring of security verdicts and actions
 
@@ -19,7 +19,7 @@ This project showcases a production-ready e-commerce chatbot with enterprise-gra
 - Node.js 20+ and npm
 - At least one LLM provider API key (or use built-in mock LLM)
 
-### Installation
+### Installation can be done through docker or locally
 
 ```bash
 # 1. Clone and install dependencies
