@@ -118,6 +118,27 @@ resource "aws_iam_role_policy" "ssm_access" {
   })
 }
 
+# Resource: inline policy to allow Bedrock model invocation
+resource "aws_iam_role_policy" "bedrock_access" {
+  name = "${local.name_prefix}-bedrock-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListModels"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Resource: instance profile to attach IAM role to EC2
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "${local.name_prefix}-instance-profile"
@@ -232,4 +253,103 @@ resource "aws_route53_record" "edge" {
   type    = "A"
   ttl     = 300
   records = [aws_instance.app.public_ip]
+}
+
+# Resource: SSM parameters (secrets/env) - created/updated by Terraform
+resource "aws_ssm_parameter" "db_password" {
+  name        = var.ssm_db_password_parameter
+  description = "Postgres password for AIRS-D"
+  type        = "SecureString"
+  value       = var.ssm_db_password_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "jwt_secret" {
+  name        = var.ssm_jwt_secret_parameter
+  description = "JWT secret for AIRS-D"
+  type        = "SecureString"
+  value       = var.ssm_jwt_secret_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "airs_api_url" {
+  count       = var.ssm_airs_api_url_value != "" ? 1 : 0
+  name        = var.ssm_airs_api_url_parameter
+  description = "AIRS API URL"
+  type        = "String"
+  value       = var.ssm_airs_api_url_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "airs_api_token" {
+  count       = var.ssm_airs_api_token_value != "" ? 1 : 0
+  name        = var.ssm_airs_api_token_parameter
+  description = "AIRS API token"
+  type        = "SecureString"
+  value       = var.ssm_airs_api_token_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "airs_profile" {
+  count       = var.ssm_airs_profile_value != "" ? 1 : 0
+  name        = var.ssm_airs_profile_parameter
+  description = "AIRS profile name"
+  type        = "String"
+  value       = var.ssm_airs_profile_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "vertex_api_key" {
+  count       = var.ssm_vertex_api_key_value != "" ? 1 : 0
+  name        = var.ssm_vertex_api_key_parameter
+  description = "Vertex API key"
+  type        = "SecureString"
+  value       = var.ssm_vertex_api_key_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "anthropic_api_key" {
+  count       = var.ssm_anthropic_api_key_value != "" ? 1 : 0
+  name        = var.ssm_anthropic_api_key_parameter
+  description = "Anthropic API key"
+  type        = "SecureString"
+  value       = var.ssm_anthropic_api_key_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "azure_openai_endpoint" {
+  count       = var.ssm_azure_openai_endpoint_value != "" ? 1 : 0
+  name        = var.ssm_azure_openai_endpoint_parameter
+  description = "Azure OpenAI endpoint"
+  type        = "String"
+  value       = var.ssm_azure_openai_endpoint_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "azure_openai_api_key" {
+  count       = var.ssm_azure_openai_api_key_value != "" ? 1 : 0
+  name        = var.ssm_azure_openai_api_key_parameter
+  description = "Azure OpenAI API key"
+  type        = "SecureString"
+  value       = var.ssm_azure_openai_api_key_value
+  overwrite   = true
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "ollama_api_url" {
+  count       = var.ssm_ollama_api_url_value != "" ? 1 : 0
+  name        = var.ssm_ollama_api_url_parameter
+  description = "Ollama API URL"
+  type        = "String"
+  value       = var.ssm_ollama_api_url_value
+  overwrite   = true
+  tier        = "Standard"
 }

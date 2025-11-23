@@ -33,8 +33,10 @@ terraform apply tfplan
 ```
 
 ## Connexion SSH
+terraform output -raw generated_private_key_pem > airs-d-generated.pem    
+chmod 600 airs-d-generated.pem            
 ```bash
-ssh -i /chemin/vers/votre.pem ec2-user@$(terraform output -raw ec2_public_ip)
+ssh -i airs-d-generated.pem ec2-user@$(terraform output -raw ec2_public_ip)
 ```
 
 ## Notes

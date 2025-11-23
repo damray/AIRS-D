@@ -84,6 +84,30 @@ async function checkOllamaConnectivity() {
   }
 }
 
+async function checkBedrockConnectivity(model) {
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
+  if (!region) return false;
+  try {
+    const { BedrockRuntimeClient, InvokeModelCommand } = await import('@aws-sdk/client-bedrock-runtime');
+    const client = new BedrockRuntimeClient({ region });
+    const cmd = new InvokeModelCommand({
+      modelId: model,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: Buffer.from(JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'Ping' }] }],
+        max_tokens: 10
+      }))
+    });
+    const res = await client.send(cmd);
+    return res && res.$metadata && res.$metadata.httpStatusCode === 200;
+  } catch (err) {
+    console.warn(`[ModelChecker] Bedrock connectivity failed (${model}): ${err?.message || err}`);
+    return false;
+  }
+}
+
 export async function checkAvailableModels() {
   const models = [];
   const checks = [];
@@ -214,6 +238,45 @@ export async function checkAvailableModels() {
       })
     );
   }
+
+  // AWS Bedrock (requires IAM role/creds on the instance)
+  const bedrockDefaultModel = process.env.BEDROCK_MODEL || 'anthropic.claude-3-sonnet-20240229-v1:0';
+  const bedrockLlamaModel = process.env.BEDROCK_LLAMA_MODEL || 'meta.llama3-1-8b-instruct-v1:0';
+  const bedrockModels = [
+    {
+      id: 'bedrock-claude-sonnet',
+      name: 'Claude 3 Sonnet (Bedrock)',
+      provider: 'bedrock',
+      model: bedrockDefaultModel,
+      enabled: true,
+      description: 'Anthropic Claude 3 Sonnet via AWS Bedrock',
+      configured: true,
+      reachable: false
+    },
+    {
+      id: 'bedrock-llama31',
+      name: 'Llama 3.1 8B (Bedrock)',
+      provider: 'bedrock',
+      model: bedrockLlamaModel,
+      enabled: true,
+      description: 'Llama 3.1 Instruct via AWS Bedrock',
+      configured: true,
+      reachable: false
+    }
+  ];
+  models.push(...bedrockModels);
+  checks.push(
+    checkBedrockConnectivity(bedrockDefaultModel).then(ok => {
+      bedrockModels[0].reachable = ok;
+      bedrockModels[0].enabled = ok;
+      if (!ok) console.warn(`[ModelChecker] Bedrock Claude (${bedrockDefaultModel}) disabled (unreachable)`);
+    }),
+    checkBedrockConnectivity(bedrockLlamaModel).then(ok => {
+      bedrockModels[1].reachable = ok;
+      bedrockModels[1].enabled = ok;
+      if (!ok) console.warn(`[ModelChecker] Bedrock Llama (${bedrockLlamaModel}) disabled (unreachable)`);
+    })
+  );
 
   const mock = {
     id: 'mock-llm',

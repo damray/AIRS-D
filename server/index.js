@@ -8,6 +8,7 @@ import pool from './db.js';
 import { registerUser, loginUser, authMiddleware } from './auth.js';
 import { callWithRetry, getRateLimitConfig, getAllRateLimits, clearRateLimits } from './rateLimiter.js';
 import { checkAvailableModels, getModelCapabilities, isProviderConfigured } from './modelChecker.js';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -148,6 +149,37 @@ async function callAzureOpenAI(prompt) {
     const data = await response.json();
     return data.choices?.[0]?.message?.content || 'No response generated';
   }, 'azure');
+}
+
+async function callBedrock(prompt, model = process.env.BEDROCK_MODEL || 'anthropic.claude-3-sonnet-20240229-v1:0') {
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
+  if (!region) {
+    throw new Error('Bedrock region not configured (AWS_REGION or AWS_DEFAULT_REGION)');
+  }
+
+  const client = new BedrockRuntimeClient({ region });
+  const body = JSON.stringify({
+    anthropic_version: 'bedrock-2023-05-31',
+    max_tokens: 512,
+    messages: [
+      { role: 'user', content: [{ type: 'text', text: `${systemPrompt}\n\nUser: ${prompt}` }] }
+    ]
+  });
+
+  return callWithRetry(async () => {
+    const res = await client.send(
+      new InvokeModelCommand({
+        modelId: model,
+        contentType: 'application/json',
+        accept: 'application/json',
+        body: Buffer.from(body)
+      })
+    );
+
+    const payload = JSON.parse(new TextDecoder().decode(res.body));
+    const text = payload?.content?.[0]?.text || payload?.content?.[0]?.text?.[0]?.text || payload?.output_text;
+    return text || 'No response generated';
+  }, 'bedrock');
 }
 
 async function callOllama(prompt, model = process.env.OLLAMA_MODEL || 'mistral') {
@@ -391,6 +423,9 @@ app.post('/api/llm/chat', async (req, res) => {
         break;
       case 'ollama':
         response = await callOllama(prompt, model);
+        break;
+      case 'bedrock':
+        response = await callBedrock(prompt, model);
         break;
       default:
         return res.status(400).json({ error: 'Invalid provider' });

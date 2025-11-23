@@ -1,7 +1,7 @@
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: 'vertex' | 'anthropic' | 'ollama' | 'azure' | 'custom';
+  provider: 'vertex' | 'anthropic' | 'ollama' | 'azure' | 'custom' | 'bedrock';
   model: string;
   enabled: boolean;
   description?: string;
@@ -66,6 +66,22 @@ export const MODELS: ModelConfig[] = [
     model: 'mock',
     enabled: true,
     description: 'Mock LLM for testing without API keys',
+  },
+  {
+    id: 'bedrock-claude-sonnet',
+    name: 'Claude 3 Sonnet (Bedrock)',
+    provider: 'bedrock',
+    model: 'anthropic.claude-3-sonnet-20240229-v1:0',
+    enabled: true,
+    description: 'Anthropic Claude 3 Sonnet via AWS Bedrock',
+  },
+  {
+    id: 'bedrock-llama31',
+    name: 'Llama 3.1 8B (Bedrock)',
+    provider: 'bedrock',
+    model: 'meta.llama3-1-8b-instruct-v1:0',
+    enabled: true,
+    description: 'Llama 3.1 Instruct via AWS Bedrock',
   }
 ];
 
