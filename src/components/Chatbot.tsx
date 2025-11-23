@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, AlertCircle, CheckCircle, Shield, Edit2, Play, ChevronDown } from 'lucide-react';
+import { MessageCircle, X, Send, AlertCircle, CheckCircle, Shield, Edit2, Play, ChevronDown, RotateCw } from 'lucide-react';
 import { getAvailableModels, getDefaultModel, type ModelConfig } from '../config/models.config';
 import { callLLM } from '../services/llmService';
 import { calculateCost, formatCost, formatTokens } from '../utils/tokenCounter';
@@ -119,30 +119,43 @@ export default function Chatbot() {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    async function fetchAvailableModels() {
-      try {
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
-        const response = await fetch(`${backendUrl}/models/available`);
+  const fetchAvailableModels = async (source: 'initial' | 'manual' = 'initial') => {
+    try {
+      setLoadingModels(true);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || '/api';
+      const response = await fetch(`${backendUrl}/models/available`);
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.models && data.models.length > 0) {
-            setAvailableModels(data.models);
-            setSelectedModel(data.models[0]);
-            setRateLimitInfo(data);
-            addLog(`Loaded ${data.models.length} available models`, undefined, undefined, undefined);
-          }
+      if (response.ok) {
+        const data = await response.json();
+        if (data.models && data.models.length > 0) {
+          setAvailableModels(data.models);
+          setSelectedModel(prev => {
+            if (prev && data.models.some((m: ModelConfig) => m.id === prev.id)) {
+              return prev;
+            }
+            return data.models[0];
+          });
+          setRateLimitInfo(data);
+          addLog(
+            `${source === 'manual' ? 'Refreshed' : 'Loaded'} ${data.models.length} available models`,
+            undefined,
+            undefined,
+            undefined
+          );
         }
-      } catch (error) {
-        console.error('Failed to fetch models:', error);
-        addLog('Using default model list (backend unavailable)', undefined, undefined, undefined);
-      } finally {
-        setLoadingModels(false);
+      } else {
+        addLog('Failed to fetch models from backend', 'block', `HTTP ${response.status}`, undefined);
       }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+      addLog('Using default model list (backend unavailable)', undefined, undefined, undefined);
+    } finally {
+      setLoadingModels(false);
     }
+  };
 
-    fetchAvailableModels();
+  useEffect(() => {
+    fetchAvailableModels('initial');
   }, []);
 
   useEffect(() => {
@@ -684,6 +697,16 @@ export default function Chatbot() {
               </div>
             )}
           </div>
+
+          <button
+            onClick={() => fetchAvailableModels('manual')}
+            disabled={loadingModels}
+            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors flex items-center gap-1 disabled:opacity-50"
+            title="Refresh available models"
+          >
+            <RotateCw className={`w-3 h-3 ${loadingModels ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
         </div>
 
         <button

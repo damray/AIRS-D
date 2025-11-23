@@ -21,33 +21,33 @@ postgres — PostgreSQL 16 (port 5432)
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ Browser (80/443)                                         │
-│   GET /                      → React static (via Edge)    │
-│   POST /api/llm/chat         → proxy → Backend:3001       │
-│   GET  /api/products         → proxy → Backend:3001       │
+│   GET /                      → React static (via Edge)   │
+│   POST /api/llm/chat         → proxy → Backend:3001      │
+│   GET  /api/products         → proxy → Backend:3001      │
 └──────────────────────────────────────────────────────────┘
                          │
               (reverse proxy: /api → 3001)
                          │
 ┌──────────────────────────────────────────────────────────┐
-│ Edge (Nginx)                                              │
-│  - Serves: / (React build)                                │
-│  - Proxies: /api/* → http://backend:3001/api/*            │
+│ Edge (Nginx)                                             │
+│  - Serves: / (React build)                               │
+│  - Proxies: /api/* → http://backend:3001/api/*           │
 └──────────────────────────────────────────────────────────┘
                          │
                          │ REST / DB client
                          ↓
 ┌──────────────────────────────────────────────────────────┐
-│ Backend (Node/Express:3001)                               │
-│  - Routes: /api/auth, /api/products, /api/cart,           │
-│           /api/llm/chat, /api/airs/scan, /health          │
-│  - Secrets: JWT, DB, AIRS, providers                      │
+│ Backend (Node/Express:3001)                              │
+│  - Routes: /api/auth, /api/products, /api/cart,          │
+│           /api/llm/chat, /api/airs/scan, /health         │
+│  - Secrets: JWT, DB, AIRS, providers                     │
 └──────────────────────────────────────────────────────────┘
                          │
                          │ SQL
                          ↓
 ┌──────────────────────────────────────────────────────────┐
-│ PostgreSQL (5432)                                         │
-│  - users, products, cart_items                            │
+│ PostgreSQL (5432)                                        │
+│  - users, products, cart_items                           │
 └──────────────────────────────────────────────────────────┘
 
 ```
