@@ -45,6 +45,7 @@ Persistent volumes: postgres-data (db), ollama-data (models)
 - SSM parameters are created by Terraform for secrets/URLs; values are provided interactively at apply.
 - Cost rationale: single VM (t4g/t3 nano + EBS) is the cheapest footprint. EKS/ECS/RDS would add fixed monthly costs and operational overhead; not used for this demo.
 - User data installs Docker/compose, clones the repo, fetches SSM params, writes `.env*`, then runs `docker-compose up -d`.
+- Full deployment steps: see `aws/README.md`.
 
 # API Map
 - `GET /api/models/available` — model list + reachability + rate limit info.
